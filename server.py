@@ -8,8 +8,15 @@ import json
 import math
 import time
 import asyncio
+import queue
+import threading
+import xml.etree.ElementTree as ET
+import urllib.request
 from urllib.parse import urlparse, urljoin
 from collections import Counter
+from datetime import datetime
+from pathlib import Path
+import os
 
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
@@ -18,6 +25,10 @@ import textstat
 
 app = Flask(__name__, static_folder="static")
 CORS(app)
+
+# Outputs folder for auto-saved reports
+OUTPUTS_DIR = Path(__file__).parent / "outputs"
+OUTPUTS_DIR.mkdir(exist_ok=True)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -390,17 +401,37 @@ async def fetch_rendered_html(url: str, page) -> tuple[str, dict]:
     t0 = time.time()
 
     try:
-        response = await page.goto(url, wait_until="networkidle", timeout=30000)
+        response = await page.goto(url, wait_until="domcontentloaded", timeout=20000)
         timing["status_code"] = response.status if response else None
+        # After DOM is loaded, wait briefly for JS frameworks to hydrate
+        try:
+            await page.wait_for_load_state("networkidle", timeout=8000)
+        except Exception:
+            pass  # Timeout is fine — page is likely already usable
     except Exception as exc:
         timing["status_code"] = None
         timing["error"] = str(exc)[:200]
 
-    # Small extra wait for late JS
-    await page.wait_for_timeout(1500)
+    # Brief wait for late client-side rendering
+    await page.wait_for_timeout(500)
     html = await page.content()
     timing["total_ms"] = round((time.time() - t0) * 1000)
     return html, timing
+
+
+def _normalise_url(url: str) -> str:
+    """Normalise a URL: drop fragment, strip trailing slash (except root), lowercase scheme+host."""
+    parsed = urlparse(url)
+    path = parsed.path.rstrip("/") or "/"
+    clean = parsed._replace(fragment="", path=path)
+    return clean.geturl()
+
+
+def _same_site(netloc_a: str, netloc_b: str) -> bool:
+    """Check if two netlocs belong to the same site (handles www vs non-www)."""
+    def strip_www(n):
+        return n.lower().removeprefix("www.")
+    return strip_www(netloc_a) == strip_www(netloc_b)
 
 
 def _discover_internal_links(html: str, base_url: str, root_netloc: str) -> set[str]:
@@ -413,44 +444,389 @@ def _discover_internal_links(html: str, base_url: str, root_netloc: str) -> set[
             continue
         full = urljoin(base_url, href)
         parsed = urlparse(full)
-        # Same domain only
-        if parsed.netloc != root_netloc:
+        # Same domain only (handles www vs non-www)
+        if not _same_site(parsed.netloc, root_netloc):
             continue
-        # Normalise: drop fragment, keep path+query
-        clean = parsed._replace(fragment="").geturl()
+        # Normalise
+        clean = _normalise_url(full)
         # Skip non-page resources
-        ext = parsed.path.rsplit(".", 1)[-1].lower() if "." in parsed.path.split("/")[-1] else ""
+        last_segment = parsed.path.split("/")[-1]
+        ext = last_segment.rsplit(".", 1)[-1].lower() if "." in last_segment else ""
         if ext in ("jpg", "jpeg", "png", "gif", "svg", "webp", "pdf", "zip",
-                    "mp3", "mp4", "wav", "css", "js", "ico", "woff", "woff2", "ttf"):
+                    "mp3", "mp4", "wav", "css", "js", "ico", "woff", "woff2", "ttf",
+                    "eot", "xml", "json", "txt", "map"):
             continue
         found.add(clean)
     return found
 
 
-# -- Server-Sent Events streaming crawl -----------------------------------
+# ---------------------------------------------------------------------------
+# Sitemap fetching
+# ---------------------------------------------------------------------------
 
-import queue
-import threading
+def _fetch_sitemap_urls(start_url: str, root_netloc: str) -> list[str]:
+    """Fetch URLs from sitemap.xml (supports sitemap index files)."""
+    urls: list[str] = []
+    parsed = urlparse(start_url)
+    # Try common sitemap locations
+    base = f"{parsed.scheme}://{parsed.netloc}"
+    # Also try www variant
+    www_base = f"{parsed.scheme}://www.{parsed.netloc}" if not parsed.netloc.startswith("www.") else base
+
+    sitemap_candidates = []
+
+    # First: check robots.txt for sitemap declarations
+    for b in [base, www_base]:
+        try:
+            robots_url = f"{b}/robots.txt"
+            req = urllib.request.Request(robots_url, headers={"User-Agent": "SEO-Analyzer/1.0"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                robots_text = resp.read().decode("utf-8", errors="ignore")
+                for line in robots_text.splitlines():
+                    if line.strip().lower().startswith("sitemap:"):
+                        sm_url = line.split(":", 1)[1].strip()
+                        if sm_url.startswith("http"):
+                            sitemap_candidates.append(sm_url)
+        except Exception:
+            pass
+
+    # Fallback: try common locations
+    if not sitemap_candidates:
+        for b in [base, www_base]:
+            sitemap_candidates.extend([
+                f"{b}/sitemap.xml",
+                f"{b}/sitemap_index.xml",
+                f"{b}/wp-sitemap.xml",
+            ])
+
+    visited_sitemaps: set[str] = set()
+
+    def _parse_sitemap(sm_url: str, depth: int = 0):
+        if depth > 3 or sm_url in visited_sitemaps:
+            return
+        visited_sitemaps.add(sm_url)
+        try:
+            req = urllib.request.Request(sm_url, headers={"User-Agent": "SEO-Analyzer/1.0"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                content = resp.read().decode("utf-8", errors="ignore")
+            # Strip namespaces for easier parsing
+            content = re.sub(r'\s+xmlns\s*=\s*"[^"]*"', '', content, count=1)
+            root = ET.fromstring(content)
+
+            # Sitemap index (contains <sitemap><loc> entries)
+            for sitemap_elem in root.iter("sitemap"):
+                loc = sitemap_elem.find("loc")
+                if loc is not None and loc.text:
+                    child_url = loc.text.strip()
+                    # Strip CDATA if present
+                    child_url = child_url.strip()
+                    _parse_sitemap(child_url, depth + 1)
+
+            # URL set (contains <url><loc> entries)
+            for url_elem in root.iter("url"):
+                loc = url_elem.find("loc")
+                if loc is not None and loc.text:
+                    page_url = loc.text.strip()
+                    p = urlparse(page_url)
+                    if _same_site(p.netloc, root_netloc):
+                        urls.append(_normalise_url(page_url))
+        except Exception:
+            pass
+
+    for sm in sitemap_candidates:
+        _parse_sitemap(sm)
+
+    return list(set(urls))
+
+
+def _resolve_url(start_url: str) -> tuple[str, str]:
+    """Follow redirects and return (resolved_url, root_netloc)."""
+    resolved_url = start_url
+    try:
+        req = urllib.request.Request(start_url, headers={"User-Agent": "SEO-Analyzer/1.0"}, method="HEAD")
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            resolved_url = resp.url
+    except Exception:
+        try:
+            req = urllib.request.Request(start_url, headers={"User-Agent": "SEO-Analyzer/1.0"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                resolved_url = resp.url
+        except Exception:
+            pass
+    parsed = urlparse(resolved_url)
+    return _normalise_url(resolved_url), parsed.netloc
+
+
+def _extract_navbar_links(html: str, base_url: str, root_netloc: str) -> list[str]:
+    """Extract links from <nav>, <header>, and common navbar containers."""
+    soup = BeautifulSoup(html, "lxml")
+    nav_links: set[str] = set()
+    # Search nav tags, header tags, and common class/id patterns
+    nav_containers = soup.find_all("nav")
+    nav_containers += soup.find_all("header")
+    for attr in ["class", "id"]:
+        for pattern in ["nav", "menu", "navbar", "main-nav", "primary-nav",
+                        "site-nav", "site-header", "main-menu", "primary-menu"]:
+            nav_containers += soup.find_all(attrs={attr: re.compile(pattern, re.I)})
+
+    for container in nav_containers:
+        for a in container.find_all("a", href=True):
+            href = a["href"].strip()
+            if href.startswith(("#", "mailto:", "tel:", "javascript:")):
+                continue
+            full = urljoin(base_url, href)
+            parsed = urlparse(full)
+            if not _same_site(parsed.netloc, root_netloc):
+                continue
+            nav_links.add(_normalise_url(full))
+    return sorted(nav_links)
+
+
+def _group_urls_by_branch(urls: list[str]) -> dict:
+    """Group URLs into 'branches' by their first path segment."""
+    branches: dict[str, list[str]] = {}
+    for u in urls:
+        parsed = urlparse(u)
+        parts = [p for p in parsed.path.strip("/").split("/") if p]
+        branch = "/" + parts[0] + "/" if parts else "/"
+        if branch not in branches:
+            branches[branch] = []
+        branches[branch].append(u)
+    # Sort branches by count descending
+    return dict(sorted(branches.items(), key=lambda x: -len(x[1])))
+
+
+def _clean_site_name(url: str) -> str:
+    """Extract clean site name from URL (no https, www, or path)."""
+    parsed = urlparse(url)
+    netloc = parsed.netloc.lower()
+    # Remove www.
+    netloc = netloc.removeprefix("www.")
+    # Remove port if present
+    netloc = netloc.split(":")[0]
+    return netloc
+
+
+def _save_report_files(url: str, summary: dict, page_reports: list[dict]):
+    """Save JSON and TXT reports to outputs/ folder with dated filename."""
+    site_name = _clean_site_name(url)
+    now = datetime.now()
+    date_str = now.strftime("%Y%m%d")
+    time_str = now.strftime("%H_%M_%S")
+    base_name = f"{site_name}_seo_report_{date_str}_{time_str}"
+    
+    # Save JSON
+    json_path = OUTPUTS_DIR / f"{base_name}.json"
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump({"summary": summary, "pages": page_reports}, f, indent=2, ensure_ascii=False)
+    
+    # Save TXT
+    txt_path = OUTPUTS_DIR / f"{base_name}.txt"
+    with open(txt_path, "w", encoding="utf-8") as f:
+        f.write(f"FULL SITE SEO REPORT\n{'=' * 70}\n")
+        if summary:
+            f.write(f"Pages Analyzed: {summary.get('total_pages', 0)}\n")
+            f.write(f"Average Score: {summary.get('avg_score', 0)}%\n")
+            f.write(f"Total Words: {summary.get('total_words', 0)}\n")
+            f.write(f"Total Issues: {summary.get('total_issues', 0)}\n\n")
+            
+            if summary.get("site_keywords"):
+                f.write(f"SITE-WIDE TOP KEYWORDS\n{'-' * 40}\n")
+                for kw in summary["site_keywords"]:
+                    f.write(f"  {kw['word']}: {kw['count']}\n")
+                f.write("\n")
+            
+            if summary.get("site_bigrams"):
+                f.write(f"SITE-WIDE TOP PHRASES\n{'-' * 40}\n")
+                for bg in summary["site_bigrams"]:
+                    f.write(f"  {bg['phrase']}: {bg['count']}\n")
+                f.write("\n")
+        
+        for r in page_reports:
+            f.write(f"\n{'=' * 70}\n")
+            f.write(f"PAGE: {r['url']}\n")
+            f.write(f"Score: {r['scores']['percentage']}% ({r['scores']['passed']}/{r['scores']['total']} passed)\n")
+            f.write(f"Status: {r['timing'].get('status_code', '?')} | {r['timing'].get('total_ms', '?')}ms\n")
+            
+            for key, sec in r.get("sections", {}).items():
+                f.write(f"\n  --- {key.replace('_', ' ').upper()} ---\n")
+                if sec.get("value") is not None:
+                    f.write(f"    Value: {sec['value']}\n")
+                if sec.get("length") is not None:
+                    f.write(f"    Length: {sec['length']}\n")
+                if sec.get("word_count") is not None:
+                    f.write(f"    Word count: {sec['word_count']}\n")
+                if sec.get("total") is not None:
+                    f.write(f"    Total: {sec['total']}\n")
+                if sec.get("internal") is not None:
+                    f.write(f"    Internal: {sec['internal']} | External: {sec.get('external', 0)}\n")
+                if sec.get("issues"):
+                    for i in sec["issues"]:
+                        f.write(f"    ⚠ {i}\n")
+                if sec.get("top_keywords"):
+                    f.write(f"    Top Keywords:\n")
+                    for kw in sec["top_keywords"][:10]:
+                        f.write(f"      {kw['word']}: {kw['count']} ({kw['density']}%)\n")
+                if sec.get("readability", {}).get("flesch_reading_ease") is not None:
+                    rd = sec["readability"]
+                    f.write(f"    Readability: Flesch={rd['flesch_reading_ease']}, Grade={rd['flesch_kincaid_grade']}, Fog={rd['gunning_fog']}\n")
+            
+            if r.get("all_issues"):
+                f.write(f"\n  ALL ISSUES ({len(r['all_issues'])}):\n")
+                for iss in r["all_issues"]:
+                    f.write(f"    [{iss['section']}] {iss['issue']}\n")
+    
+    return {"json": str(json_path), "txt": str(txt_path)}
+
+
+def _prescan(start_url: str) -> dict:
+    """Do a lightweight prescan: resolve URL, fetch sitemap, load homepage for navbar."""
+    resolved_url, root_netloc = _resolve_url(start_url)
+
+    # Fetch sitemap URLs
+    sitemap_urls = []
+    try:
+        sitemap_urls = _fetch_sitemap_urls(resolved_url, root_netloc)
+    except Exception:
+        pass
+
+    # Fetch homepage and extract navbar links
+    navbar_urls: list[str] = []
+    homepage_links: list[str] = []
+    try:
+        req = urllib.request.Request(resolved_url, headers={"User-Agent": "SEO-Analyzer/1.0"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            html = resp.read().decode("utf-8", errors="ignore")
+        navbar_urls = _extract_navbar_links(html, resolved_url, root_netloc)
+        # Also get all internal links from homepage (non-rendered, quick)
+        soup = BeautifulSoup(html, "lxml")
+        for a in soup.find_all("a", href=True):
+            href = a["href"].strip()
+            if href.startswith(("#", "mailto:", "tel:", "javascript:")):
+                continue
+            full = urljoin(resolved_url, href)
+            parsed = urlparse(full)
+            if _same_site(parsed.netloc, root_netloc):
+                homepage_links.append(_normalise_url(full))
+    except Exception:
+        pass
+
+    # Combine all discovered URLs
+    all_urls = list(set([resolved_url] + sitemap_urls + navbar_urls + homepage_links))
+    branches = _group_urls_by_branch(all_urls)
+
+    # Figure out which branches the navbar links touch
+    navbar_branches: set[str] = set()
+    for u in navbar_urls:
+        parsed = urlparse(u)
+        parts = [p for p in parsed.path.strip("/").split("/") if p]
+        branch = "/" + parts[0] + "/" if parts else "/"
+        navbar_branches.add(branch)
+
+    return {
+        "resolved_url": resolved_url,
+        "root_netloc": root_netloc,
+        "total_urls": len(all_urls),
+        "navbar_urls": navbar_urls,
+        "navbar_branches": sorted(navbar_branches),
+        "branches": {b: {"count": len(urls), "sample_urls": urls[:5]}
+                     for b, urls in branches.items()},
+        "all_urls": all_urls,
+    }
+
+
+# -- Server-Sent Events streaming crawl -----------------------------------
 
 # Holds crawl state for active crawl (single-user local app)
 _crawl_state: dict = {}
 
+# Number of parallel browser tabs for crawling
+PARALLEL_TABS = 10
 
-def _run_crawl(start_url: str, max_pages: int, state: dict):
+
+def _run_crawl(start_url: str, max_pages: int, state: dict,
+               seed_urls: list[str] | None = None,
+               allowed_branches: list[str] | None = None):
     """Run full site crawl in a background thread using asyncio."""
-    asyncio.run(_async_crawl(start_url, max_pages, state))
+    asyncio.run(_async_crawl(start_url, max_pages, state, seed_urls, allowed_branches))
 
 
-async def _async_crawl(start_url: str, max_pages: int, state: dict):
+async def _async_crawl(start_url: str, max_pages: int, state: dict,
+                       seed_urls: list[str] | None = None,
+                       allowed_branches: list[str] | None = None):
     from playwright.async_api import async_playwright
 
-    parsed_root = urlparse(start_url)
-    root_netloc = parsed_root.netloc
+    # If we already have prescan data, skip the resolve + sitemap step
+    if seed_urls is not None:
+        # seed_urls already contains the filtered URL list
+        parsed_root = urlparse(start_url)
+        root_netloc = parsed_root.netloc
+
+        state["q"].put({"type": "status", "page": 0, "url": start_url,
+                        "queued": len(seed_urls), "total_found": len(seed_urls),
+                        "message": f"Starting crawl of {len(seed_urls)} selected URLs…"})
+    else:
+        # Legacy path: resolve + sitemap discovery
+        resolved_url = start_url
+        try:
+            req = urllib.request.Request(start_url, headers={"User-Agent": "SEO-Analyzer/1.0"}, method="HEAD")
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                resolved_url = resp.url
+        except Exception:
+            try:
+                req = urllib.request.Request(start_url, headers={"User-Agent": "SEO-Analyzer/1.0"})
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    resolved_url = resp.url
+            except Exception:
+                pass
+
+        parsed_root = urlparse(resolved_url)
+        root_netloc = parsed_root.netloc
+        start_url = _normalise_url(resolved_url)
+
+        state["q"].put({"type": "status", "page": 0, "url": start_url,
+                        "queued": 0, "total_found": 1,
+                        "message": f"Resolved to {root_netloc}, checking sitemap…"})
+
+        sitemap_urls = []
+        try:
+            sitemap_urls = _fetch_sitemap_urls(start_url, root_netloc)
+            if sitemap_urls:
+                state["q"].put({"type": "status", "page": 0, "url": start_url,
+                                "queued": len(sitemap_urls), "total_found": len(sitemap_urls),
+                                "message": f"Found {len(sitemap_urls)} URLs in sitemap"})
+        except Exception:
+            pass
+        seed_urls = [start_url] + sitemap_urls
+
+    def _url_matches_branches(u: str) -> bool:
+        """Check if a URL belongs to one of the allowed branches."""
+        if allowed_branches is None:
+            return True
+        if allowed_branches == []:
+            # Empty list means: navbar-only mode, no link discovery
+            # Only allow URLs that are in the original seed list
+            return False
+        parsed = urlparse(u)
+        parts = [p for p in parsed.path.strip("/").split("/") if p]
+        branch = "/" + parts[0] + "/" if parts else "/"
+        return branch in allowed_branches
 
     visited: set[str] = set()
-    to_visit: list[str] = [start_url]
+    to_visit_set: set[str] = set()
+    to_visit: list[str] = []
+
+    def _enqueue(u: str, force: bool = False):
+        norm = _normalise_url(u)
+        if norm not in visited and norm not in to_visit_set and (force or _url_matches_branches(norm)):
+            to_visit_set.add(norm)
+            to_visit.append(norm)
+
+    # Seed queue - force=True to bypass branch checking for initial seeds
+    for su in seed_urls:
+        _enqueue(su, force=True)
+
     page_reports: list[dict] = []
-    all_site_issues: list[dict] = []
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -462,49 +838,77 @@ async def _async_crawl(start_url: str, max_pages: int, state: dict):
             ),
             viewport={"width": 1920, "height": 1080},
         )
-        page = await context.new_page()
 
-        while to_visit and len(visited) < max_pages:
-            url = to_visit.pop(0)
-            # Normalise
-            url_parsed = urlparse(url)
-            url_clean = url_parsed._replace(fragment="").geturl()
-            if url_clean in visited:
-                continue
-            visited.add(url_clean)
+        # Create parallel tabs
+        pages = []
+        for _ in range(PARALLEL_TABS):
+            pages.append(await context.new_page())
 
-            page_num = len(visited)
-            state["q"].put({"type": "status", "page": page_num, "url": url_clean,
-                            "queued": len(to_visit), "total_found": len(visited) + len(to_visit)})
-
+        async def _process_url(tab, url_to_crawl):
+            """Fetch, discover links, analyse a single URL on a given tab."""
             try:
-                html, timing = await fetch_rendered_html(url_clean, page)
+                html, timing = await fetch_rendered_html(url_to_crawl, tab)
             except Exception as exc:
-                state["q"].put({"type": "page_error", "url": url_clean, "error": str(exc)[:300]})
-                continue
+                state["q"].put({"type": "page_error", "url": url_to_crawl, "error": str(exc)[:300]})
+                return
 
             # Discover more internal links
             try:
-                new_links = _discover_internal_links(html, url_clean, root_netloc)
+                new_links = _discover_internal_links(html, url_to_crawl, root_netloc)
                 for link in new_links:
-                    if link not in visited and link not in to_visit:
-                        to_visit.append(link)
+                    _enqueue(link)
             except Exception:
                 pass
 
             # Analyse
             try:
-                report = analyze_html(html, url_clean, timing)
+                report = analyze_html(html, url_to_crawl, timing)
                 page_reports.append(report)
-                # Stream individual page result
                 state["q"].put({"type": "page_done", "report": report})
             except Exception as exc:
-                state["q"].put({"type": "page_error", "url": url_clean, "error": str(exc)[:300]})
+                state["q"].put({"type": "page_error", "url": url_to_crawl, "error": str(exc)[:300]})
+
+        # Crawl with parallel tabs
+        while to_visit and len(visited) < max_pages:
+            # Grab a batch of URLs for parallel processing
+            batch: list[str] = []
+            while to_visit and len(batch) < PARALLEL_TABS and (len(visited) + len(batch)) < max_pages:
+                url = to_visit.pop(0)
+                norm = _normalise_url(url)
+                if norm in visited:
+                    continue
+                visited.add(norm)
+                batch.append(norm)
+
+            if not batch:
+                break
+
+            page_num = len(visited)
+            state["q"].put({"type": "status", "page": page_num, "url": batch[0],
+                            "queued": len(to_visit), "total_found": len(visited) + len(to_visit)})
+
+            # Run batch in parallel
+            tasks = []
+            for i, burl in enumerate(batch):
+                tasks.append(_process_url(pages[i % len(pages)], burl))
+            await asyncio.gather(*tasks)
 
         await browser.close()
 
     # Build site-wide summary
     summary = _build_site_summary(page_reports)
+    
+    # Auto-save reports to outputs/ folder
+    try:
+        saved_paths = _save_report_files(start_url, summary, page_reports)
+        state["q"].put({"type": "status", "page": len(visited), "url": "",
+                        "queued": 0, "total_found": len(visited),
+                        "message": f"Reports saved: {Path(saved_paths['json']).name}"})
+    except Exception as e:
+        state["q"].put({"type": "status", "page": len(visited), "url": "",
+                        "queued": 0, "total_found": len(visited),
+                        "message": f"Warning: Failed to save reports: {e}"})
+    
     state["q"].put({"type": "complete", "summary": summary})
 
 
@@ -603,20 +1007,44 @@ def api_analyze():
     return jsonify(report)
 
 
+@app.route("/api/prescan", methods=["POST"])
+def api_prescan():
+    """Quick pre-scan: resolve URL, fetch sitemap, extract navbar links, group by branch."""
+    data = request.get_json(force=True)
+    url = data.get("url", "").strip()
+    if not url:
+        return jsonify({"error": "No URL provided."}), 400
+    if not url.startswith("http"):
+        url = "https://" + url
+    try:
+        result = _prescan(url)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": f"Pre-scan failed: {e}"}), 500
+
+
 @app.route("/api/crawl", methods=["POST"])
 def api_crawl_start():
     """Start a full-site crawl. Returns immediately; use /api/crawl/stream to get results via SSE."""
     global _crawl_state
     data = request.get_json(force=True)
     url = data.get("url", "").strip()
-    max_pages = min(int(data.get("max_pages", 50)), 200)
+    max_pages = min(int(data.get("max_pages", 100)), 500)
     if not url:
         return jsonify({"error": "No URL provided."}), 400
     if not url.startswith("http"):
         url = "https://" + url
 
+    # Accept optional prescan-based filtering
+    seed_urls = data.get("seed_urls")  # pre-filtered URL list
+    allowed_branches = data.get("allowed_branches")  # list of branch prefixes
+
     _crawl_state = {"q": queue.Queue(), "started": True}
-    t = threading.Thread(target=_run_crawl, args=(url, max_pages, _crawl_state), daemon=True)
+    t = threading.Thread(
+        target=_run_crawl,
+        args=(url, max_pages, _crawl_state, seed_urls, allowed_branches),
+        daemon=True,
+    )
     t.start()
     return jsonify({"status": "started", "url": url, "max_pages": max_pages})
 
@@ -643,6 +1071,52 @@ def api_crawl_stream():
     from flask import Response
     return Response(generate(), mimetype="text/event-stream",
                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@app.route("/api/reports")
+def api_list_reports():
+    """List all saved reports in outputs/ folder."""
+    try:
+        reports = []
+        # Ensure outputs directory exists
+        if not OUTPUTS_DIR.exists():
+            OUTPUTS_DIR.mkdir(exist_ok=True)
+        
+        # Safely list JSON files
+        json_files = list(OUTPUTS_DIR.glob("*.json"))
+        for f in sorted(json_files, key=lambda x: x.stat().st_mtime, reverse=True):
+            try:
+                stat = f.stat()
+                reports.append({
+                    "filename": f.name,
+                    "size": stat.st_size,
+                    "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                })
+            except Exception:
+                continue  # Skip files that can't be read
+        
+        return jsonify({"reports": reports}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to list reports: {str(e)}"}), 500
+
+
+@app.route("/api/reports/<filename>")
+def api_get_report(filename):
+    """Serve a specific saved report JSON file."""
+    try:
+        # Security: only allow alphanumeric, dots, dashes, underscores
+        if not re.match(r'^[\w\.\-]+\.json$', filename):
+            return jsonify({"error": "Invalid filename"}), 400
+        
+        file_path = OUTPUTS_DIR / filename
+        if not file_path.exists():
+            return jsonify({"error": "Report not found"}), 404
+        
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": f"Failed to load report: {e}"}), 500
 
 
 # ---------------------------------------------------------------------------

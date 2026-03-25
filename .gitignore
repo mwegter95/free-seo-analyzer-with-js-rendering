@@ -49,6 +49,9 @@ ms-playwright/
 *.log
 logs/
 
+# Output reports
+outputs/
+
 # Testing
 .pytest_cache/
 .coverage

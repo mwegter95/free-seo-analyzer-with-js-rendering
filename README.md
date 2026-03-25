@@ -2,6 +2,22 @@
 
 A powerful, **free, local SEO analysis tool** with **full JavaScript rendering support** — no paywalls, no limitations. Automatically crawls your entire website and generates comprehensive SEO reports.
 
+## Table of Contents
+
+- [Why This Tool?](#why-this-tool)
+- [What Gets Analyzed](#what-gets-analyzed)
+- [Installation & Setup](#installation--setup)
+  - [Quick Start](#quick-start)
+  - [Manual Setup](#manual-setup-alternative)
+- [Usage](#usage)
+- [Technology Stack](#technology-stack)
+- [Why Local + JavaScript Rendering Matters](#why-local--javascript-rendering-matters)
+- [Use Cases](#use-cases)
+- [Tips for Best Results](#tips-for-best-results)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [License](#license)
+
 ## Why This Tool?
 
 - **🚀 Full JavaScript Rendering**: Uses Playwright headless Chromium to render pages exactly as Google sees them — including SPAs, dynamic content, and client-side rendered apps
@@ -16,6 +32,7 @@ A powerful, **free, local SEO analysis tool** with **full JavaScript rendering s
 ## What Gets Analyzed
 
 ### On-Page SEO
+
 - **Title Tag**: Length, optimization, keyword presence
 - **Meta Description**: Length, optimization, keyword presence
 - **Headings (H1-H6)**: Structure, hierarchy, keyword usage
@@ -23,12 +40,14 @@ A powerful, **free, local SEO analysis tool** with **full JavaScript rendering s
 - **Content Quality**: Word count, thin content detection
 
 ### Keywords & Content
+
 - **Top Keywords**: Frequency analysis with density percentages
 - **2-Word & 3-Word Phrases**: Multi-word keyword opportunities
 - **Strategic Placement**: Keyword presence in title, meta, H1, URL
 - **Readability Scores**: Multiple readability indices
 
 ### Technical SEO
+
 - **Canonical URLs**: Proper URL canonicalization
 - **Robots Meta**: Indexing directives
 - **HTTPS**: Security check
@@ -36,25 +55,30 @@ A powerful, **free, local SEO analysis tool** with **full JavaScript rendering s
 - **Charset & Language**: Proper encoding and language tags
 
 ### Images
+
 - **Alt Text**: Missing or empty alt attributes
 - **Image Count**: Total images per page
 
 ### Links
+
 - **Internal Links**: Internal linking structure
 - **External Links**: Outbound link analysis
 - **Nofollow Detection**: Rel="nofollow" identification
 
 ### Social & Rich Media
+
 - **Open Graph**: Facebook/LinkedIn sharing tags
 - **Twitter Cards**: Twitter sharing optimization
 - **Structured Data (JSON-LD)**: Schema.org markup for rich snippets
 
 ### Performance
+
 - **Inline Styles**: Excessive inline CSS detection
 - **Render-Blocking Scripts**: Scripts without async/defer
 - **Page Load Times**: Navigation and total render time
 
 ### Site-Wide Analysis
+
 - **Average Score**: Overall site health percentage
 - **Check Pass Rates**: How each SEO check performs across all pages
 - **Site-Wide Keywords**: Aggregated keyword usage across the entire site
@@ -63,17 +87,35 @@ A powerful, **free, local SEO analysis tool** with **full JavaScript rendering s
 ## Installation & Setup
 
 ### Prerequisites
+
 - Python 3.8 or higher
 - ~200MB disk space for Playwright Chromium
 
 ### Quick Start
 
-1. **Clone or download this repository**
+1. **Get the code**
+
+   **Option A: Clone with Git**
+
    ```bash
-   cd seo-analyzer-app
+   git clone https://github.com/mwegter95/free-seo-analyzer-with-js-rendering.git
+   cd free-seo-analyzer-with-js-rendering
    ```
 
+   **Option B: Download ZIP**
+   - Go to [https://github.com/mwegter95/free-seo-analyzer-with-js-rendering](https://github.com/mwegter95/free-seo-analyzer-with-js-rendering)
+   - Click the green **Code** button → **Download ZIP**
+   - Extract the ZIP file and navigate to the folder:
+     ```bash
+     cd free-seo-analyzer-with-js-rendering
+     ```
+   - Make the scripts executable (ZIP downloads lose this):
+     ```bash
+     chmod +x start.sh start_and_install.sh
+     ```
+
 2. **First-time setup** — run the installation script (does everything automatically):
+
    ```bash
    ./start_and_install.sh
    ```
@@ -85,6 +127,7 @@ A powerful, **free, local SEO analysis tool** with **full JavaScript rendering s
    - Start the server on `http://localhost:5015`
 
 3. **Subsequent runs** — just start the server:
+
    ```bash
    ./start.sh
    ```
@@ -128,25 +171,30 @@ Server will start at `http://localhost:5015`
 The tool provides **three views**:
 
 #### 📊 Site Summary
+
 - **Overall score** across all pages
 - **Check pass rates** showing which SEO elements pass/fail site-wide
 - **Site-wide keyword analysis** aggregated from all content
 - **Worst-performing pages** needing immediate attention
 
 #### 📄 All Pages
+
 - List of every analyzed page with individual scores
 - Click any page to see detailed breakdown
 - Issues count per page
 - Sorted by score (worst first)
 
 #### ⚠️ All Issues
+
 - Every SEO issue found across the entire site
 - Grouped by category (title, meta, images, etc.)
 - Shows which page each issue appears on
 - Total issue count
 
 ### Click Any Page for Details
+
 Click on any page in the list to see:
+
 - Full breakdown of all 17 SEO checks
 - Per-page keyword analysis
 - Specific issues and recommendations
@@ -154,6 +202,7 @@ Click on any page in the list to see:
 - Social sharing optimization
 
 ### Export Options
+
 - **Export Full JSON**: Machine-readable format for integrations
 - **Export Full Text Report**: Human-readable report for documentation
 
@@ -168,17 +217,19 @@ Click on any page in the list to see:
 ## Why Local + JavaScript Rendering Matters
 
 ### The Problem with Most SEO Tools
+
 - **Screaming Frog**: JavaScript rendering locked behind paid tier ($259/year)
 - **Online Tools**: Rate limits, monthly costs, data privacy concerns
 - **Basic Crawlers**: Miss client-side rendered content (React, Vue, Angular apps)
 
 ### How This Tool Solves It
+
 ✅ **Free forever** — no subscriptions or feature paywalls  
 ✅ **Full JS rendering** — sees your site exactly like Google does  
 ✅ **Unlimited crawls** — analyze as many sites as you want  
 ✅ **Complete privacy** — all data stays on your machine  
 ✅ **No rate limits** — crawl at full speed  
-✅ **Open source** — modify and extend as needed  
+✅ **Open source** — modify and extend as needed
 
 ## Use Cases
 
@@ -200,23 +251,28 @@ Click on any page in the list to see:
 ## Troubleshooting
 
 **First time setup vs regular startup**
+
 - **First time**: Use `./start_and_install.sh` to install everything
 - **Already installed**: Use `./start.sh` to just start the server
 - **Stop server**: Press `Ctrl+C` in the terminal
 
 **Server won't start?**
+
 - Ensure port 5015 is available
 - Check Python version: `python3 --version` (needs 3.8+)
 
 **Crawl fails or times out?**
+
 - Check your internet connection
 - Verify the URL is accessible in a browser
 - Try reducing max pages for initial test
 
 **Missing Playwright browser?**
+
 - Run: `playwright install chromium`
 
 **Dependencies not found?**
+
 - Ensure virtual environment is activated: `source venv/bin/activate`
 - Reinstall: `pip install -r requirements.txt`
 

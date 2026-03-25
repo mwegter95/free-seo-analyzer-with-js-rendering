@@ -1,691 +1,1744 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SEO Analyzer</title>
-  <style>
-    :root {
-      --bg: #0f1117;
-      --surface: #1a1d27;
-      --surface2: #23273a;
-      --border: #2d3148;
-      --text: #e2e4ed;
-      --muted: #8b8fa3;
-      --accent: #6c63ff;
-      --accent2: #4fc3f7;
-      --green: #4caf50;
-      --yellow: #ffc107;
-      --red: #ef5350;
-      --radius: 10px;
-    }
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: var(--bg); color: var(--text); min-height: 100vh;
-    }
-    .container { max-width: 1040px; margin: 0 auto; padding: 32px 20px; }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SEO Analyzer</title>
+    <style>
+      :root {
+        --bg: #0f1117;
+        --surface: #1a1d27;
+        --surface2: #23273a;
+        --border: #2d3148;
+        --text: #e2e4ed;
+        --muted: #8b8fa3;
+        --accent: #6c63ff;
+        --accent2: #4fc3f7;
+        --green: #4caf50;
+        --yellow: #ffc107;
+        --red: #ef5350;
+        --radius: 10px;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+      }
+      .container {
+        max-width: 1040px;
+        margin: 0 auto;
+        padding: 32px 20px;
+      }
 
-    .header { text-align: center; margin-bottom: 32px; }
-    .header h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
-    .header h1 span { color: var(--accent); }
-    .header p { color: var(--muted); margin-top: 6px; font-size: 14px; }
+      .header {
+        text-align: center;
+        margin-bottom: 32px;
+      }
+      .header h1 {
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+      }
+      .header h1 span {
+        color: var(--accent);
+      }
+      .header p {
+        color: var(--muted);
+        margin-top: 6px;
+        font-size: 14px;
+      }
 
-    .input-row {
-      display: flex; gap: 10px; margin-bottom: 8px;
-      background: var(--surface); padding: 10px; border-radius: var(--radius);
-      border: 1px solid var(--border); flex-wrap: wrap;
-    }
-    .input-row input[type="text"] {
-      flex: 1; min-width: 200px; padding: 12px 16px; font-size: 15px;
-      background: var(--surface2); color: var(--text);
-      border: 1px solid var(--border); border-radius: 8px;
-      outline: none; transition: border 0.2s;
-    }
-    .input-row input[type="text"]:focus { border-color: var(--accent); }
-    .input-row .max-pages {
-      width: 90px; padding: 12px 10px; font-size: 14px; text-align: center;
-      background: var(--surface2); color: var(--text);
-      border: 1px solid var(--border); border-radius: 8px; outline: none;
-    }
-    .input-row .max-label { color: var(--muted); font-size: 12px; align-self: center; }
-    .input-row button {
-      padding: 12px 28px; font-size: 15px; font-weight: 600;
-      background: var(--accent); color: #fff; border: none;
-      border-radius: 8px; cursor: pointer; transition: opacity 0.2s;
-      white-space: nowrap;
-    }
-    .input-row button:disabled { opacity: 0.5; cursor: wait; }
-    .input-row button:hover:not(:disabled) { opacity: 0.85; }
+      .input-row {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 8px;
+        background: var(--surface);
+        padding: 10px;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        flex-wrap: wrap;
+      }
+      .input-row input[type="text"] {
+        flex: 1;
+        min-width: 200px;
+        padding: 12px 16px;
+        font-size: 15px;
+        background: var(--surface2);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        outline: none;
+        transition: border 0.2s;
+      }
+      .input-row input[type="text"]:focus {
+        border-color: var(--accent);
+      }
+      .input-row .max-pages {
+        width: 90px;
+        padding: 12px 10px;
+        font-size: 14px;
+        text-align: center;
+        background: var(--surface2);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        outline: none;
+      }
+      .input-row .max-label {
+        color: var(--muted);
+        font-size: 12px;
+        align-self: center;
+      }
+      .input-row button {
+        padding: 12px 28px;
+        font-size: 15px;
+        font-weight: 600;
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: opacity 0.2s;
+        white-space: nowrap;
+      }
+      .input-row button:disabled {
+        opacity: 0.5;
+        cursor: wait;
+      }
+      .input-row button:hover:not(:disabled) {
+        opacity: 0.85;
+      }
 
-    .tabs { display: flex; gap: 4px; margin: 16px 0 12px; }
-    .tab {
-      padding: 8px 18px; font-size: 13px; font-weight: 600;
-      background: var(--surface); color: var(--muted);
-      border: 1px solid var(--border); border-radius: 8px 8px 0 0;
-      cursor: pointer; transition: all 0.15s;
-    }
-    .tab.active { background: var(--surface2); color: var(--text); border-bottom-color: var(--surface2); }
-    .tab-panel { display: none; }
-    .tab-panel.active { display: block; }
+      .tabs {
+        display: flex;
+        gap: 4px;
+        margin: 16px 0 12px;
+      }
+      .tab {
+        padding: 8px 18px;
+        font-size: 13px;
+        font-weight: 600;
+        background: var(--surface);
+        color: var(--muted);
+        border: 1px solid var(--border);
+        border-radius: 8px 8px 0 0;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .tab.active {
+        background: var(--surface2);
+        color: var(--text);
+        border-bottom-color: var(--surface2);
+      }
+      .tab-panel {
+        display: none;
+      }
+      .tab-panel.active {
+        display: block;
+      }
 
-    .status { text-align: center; color: var(--muted); margin: 20px 0; font-size: 14px; }
-    .spinner {
-      display: inline-block; width: 16px; height: 16px;
-      border: 2px solid var(--border); border-top-color: var(--accent);
-      border-radius: 50%; animation: spin 0.7s linear infinite;
-      vertical-align: middle; margin-right: 6px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .progress-bar-wrap {
-      background: var(--surface2); border-radius: 6px; height: 8px;
-      margin: 12px 0; overflow: hidden;
-    }
-    .progress-bar {
-      height: 100%; background: var(--accent); border-radius: 6px;
-      transition: width 0.3s;
-    }
-    .crawl-log {
-      max-height: 160px; overflow-y: auto; font-size: 12px; color: var(--muted);
-      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
-      padding: 10px 14px; margin: 10px 0; font-family: 'SF Mono', monospace;
-    }
-    .crawl-log div { padding: 1px 0; }
-    .crawl-log .ok { color: var(--green); }
-    .crawl-log .err { color: var(--red); }
+      .status {
+        text-align: center;
+        color: var(--muted);
+        margin: 20px 0;
+        font-size: 14px;
+      }
+      .spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid var(--border);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        vertical-align: middle;
+        margin-right: 6px;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .progress-bar-wrap {
+        background: var(--surface2);
+        border-radius: 6px;
+        height: 8px;
+        margin: 12px 0;
+        overflow: hidden;
+      }
+      .progress-bar {
+        height: 100%;
+        background: var(--accent);
+        border-radius: 6px;
+        transition: width 0.3s;
+      }
+      .crawl-log {
+        max-height: 160px;
+        overflow-y: auto;
+        font-size: 12px;
+        color: var(--muted);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 14px;
+        margin: 10px 0;
+        font-family: "SF Mono", monospace;
+      }
+      .crawl-log div {
+        padding: 1px 0;
+      }
+      .crawl-log .ok {
+        color: var(--green);
+      }
+      .crawl-log .err {
+        color: var(--red);
+      }
 
-    .score-banner {
-      display: flex; align-items: center; justify-content: space-between;
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 20px 28px; margin-bottom: 20px;
-      flex-wrap: wrap; gap: 16px;
-    }
-    .score-circle {
-      width: 80px; height: 80px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 26px; font-weight: 700; flex-shrink: 0;
-    }
-    .score-circle.good { background: rgba(76,175,80,0.15); color: var(--green); border: 3px solid var(--green); }
-    .score-circle.ok   { background: rgba(255,193,7,0.12); color: var(--yellow); border: 3px solid var(--yellow); }
-    .score-circle.bad  { background: rgba(239,83,80,0.12); color: var(--red); border: 3px solid var(--red); }
-    .score-meta { flex: 1; min-width: 200px; }
-    .score-meta .url { font-size: 14px; color: var(--accent2); word-break: break-all; }
-    .score-meta .stats { color: var(--muted); font-size: 13px; margin-top: 6px; }
-    .timing { font-size: 13px; color: var(--muted); text-align: right; }
+      .score-banner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 20px 28px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 16px;
+      }
+      .score-circle {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 26px;
+        font-weight: 700;
+        flex-shrink: 0;
+      }
+      .score-circle.good {
+        background: rgba(76, 175, 80, 0.15);
+        color: var(--green);
+        border: 3px solid var(--green);
+      }
+      .score-circle.ok {
+        background: rgba(255, 193, 7, 0.12);
+        color: var(--yellow);
+        border: 3px solid var(--yellow);
+      }
+      .score-circle.bad {
+        background: rgba(239, 83, 80, 0.12);
+        color: var(--red);
+        border: 3px solid var(--red);
+      }
+      .score-meta {
+        flex: 1;
+        min-width: 200px;
+      }
+      .score-meta .url {
+        font-size: 14px;
+        color: var(--accent2);
+        word-break: break-all;
+      }
+      .score-meta .stats {
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 6px;
+      }
+      .timing {
+        font-size: 13px;
+        color: var(--muted);
+        text-align: right;
+      }
 
-    .section {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); margin-bottom: 10px; overflow: hidden;
-    }
-    .section-header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 12px 18px; cursor: pointer; user-select: none;
-      transition: background 0.15s;
-    }
-    .section-header:hover { background: var(--surface2); }
-    .section-title { font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 8px; }
-    .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; }
-    .badge.pass { background: rgba(76,175,80,0.15); color: var(--green); }
-    .badge.fail { background: rgba(239,83,80,0.12); color: var(--red); }
-    .chevron { transition: transform 0.2s; font-size: 12px; color: var(--muted); }
-    .section.open .chevron { transform: rotate(90deg); }
-    .section-body { display: none; padding: 0 18px 14px; font-size: 13px; line-height: 1.7; }
-    .section.open .section-body { display: block; }
+      .section {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        margin-bottom: 10px;
+        overflow: hidden;
+      }
+      .section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 18px;
+        cursor: pointer;
+        user-select: none;
+        transition: background 0.15s;
+      }
+      .section-header:hover {
+        background: var(--surface2);
+      }
+      .section-title {
+        font-weight: 600;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .badge {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .badge.pass {
+        background: rgba(76, 175, 80, 0.15);
+        color: var(--green);
+      }
+      .badge.fail {
+        background: rgba(239, 83, 80, 0.12);
+        color: var(--red);
+      }
+      .chevron {
+        transition: transform 0.2s;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .section.open .chevron {
+        transform: rotate(90deg);
+      }
+      .section-body {
+        display: none;
+        padding: 0 18px 14px;
+        font-size: 13px;
+        line-height: 1.7;
+      }
+      .section.open .section-body {
+        display: block;
+      }
 
-    .kv { display: flex; gap: 8px; margin: 3px 0; }
-    .kv .label { color: var(--muted); min-width: 130px; flex-shrink: 0; }
-    .kv .value { color: var(--text); word-break: break-all; }
+      .kv {
+        display: flex;
+        gap: 8px;
+        margin: 3px 0;
+      }
+      .kv .label {
+        color: var(--muted);
+        min-width: 130px;
+        flex-shrink: 0;
+      }
+      .kv .value {
+        color: var(--text);
+        word-break: break-all;
+      }
 
-    .issue-list { list-style: none; padding: 0; margin: 8px 0 0; }
-    .issue-list li {
-      padding: 5px 10px; margin: 3px 0; border-radius: 6px;
-      background: rgba(239,83,80,0.08); color: var(--red); font-size: 12px;
-    }
-    .issue-list li::before { content: "⚠ "; }
+      .issue-list {
+        list-style: none;
+        padding: 0;
+        margin: 8px 0 0;
+      }
+      .issue-list li {
+        padding: 5px 10px;
+        margin: 3px 0;
+        border-radius: 6px;
+        background: rgba(239, 83, 80, 0.08);
+        color: var(--red);
+        font-size: 12px;
+      }
+      .issue-list li::before {
+        content: "⚠ ";
+      }
 
-    .kw-table { width: 100%; border-collapse: collapse; margin: 6px 0; }
-    .kw-table th { text-align: left; color: var(--muted); font-weight: 500; padding: 5px 8px; border-bottom: 1px solid var(--border); font-size: 11px; }
-    .kw-table td { padding: 4px 8px; border-bottom: 1px solid var(--border); font-size: 12px; }
-    .kw-bar { height: 5px; border-radius: 3px; background: var(--accent); display: inline-block; vertical-align: middle; }
+      .kw-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 6px 0;
+      }
+      .kw-table th {
+        text-align: left;
+        color: var(--muted);
+        font-weight: 500;
+        padding: 5px 8px;
+        border-bottom: 1px solid var(--border);
+        font-size: 11px;
+      }
+      .kw-table td {
+        padding: 4px 8px;
+        border-bottom: 1px solid var(--border);
+        font-size: 12px;
+      }
+      .kw-bar {
+        height: 5px;
+        border-radius: 3px;
+        background: var(--accent);
+        display: inline-block;
+        vertical-align: middle;
+      }
 
-    .page-list-item {
-      display: flex; align-items: center; gap: 12px;
-      padding: 10px 16px; margin: 4px 0;
-      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
-      cursor: pointer; transition: background 0.15s; font-size: 13px;
-    }
-    .page-list-item:hover { background: var(--surface2); }
-    .page-list-item .page-score {
-      width: 42px; height: 42px; border-radius: 50%; display: flex;
-      align-items: center; justify-content: center; font-weight: 700;
-      font-size: 14px; flex-shrink: 0;
-    }
-    .page-list-item .page-url { flex: 1; color: var(--accent2); word-break: break-all; }
-    .page-list-item .page-issues { color: var(--red); font-size: 12px; white-space: nowrap; }
+      .page-list-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 16px;
+        margin: 4px 0;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.15s;
+        font-size: 13px;
+      }
+      .page-list-item:hover {
+        background: var(--surface2);
+      }
+      .page-list-item .page-score {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 14px;
+        flex-shrink: 0;
+      }
+      .page-list-item .page-url {
+        flex: 1;
+        color: var(--accent2);
+        word-break: break-all;
+      }
+      .page-list-item .page-issues {
+        color: var(--red);
+        font-size: 12px;
+        white-space: nowrap;
+      }
 
-    .issues-summary { margin-top: 16px; }
-    .issues-summary h3 { font-size: 15px; margin-bottom: 8px; }
-    .issue-row {
-      display: flex; gap: 10px; align-items: baseline;
-      padding: 6px 12px; margin: 3px 0; border-radius: 6px;
-      background: var(--surface); border: 1px solid var(--border); font-size: 12px;
-    }
-    .issue-section { color: var(--accent2); font-weight: 600; min-width: 110px; text-transform: capitalize; }
-    .issue-url { color: var(--muted); font-size: 11px; }
+      .issues-summary {
+        margin-top: 16px;
+      }
+      .issues-summary h3 {
+        font-size: 15px;
+        margin-bottom: 8px;
+      }
+      .issue-row {
+        display: flex;
+        gap: 10px;
+        align-items: baseline;
+        padding: 6px 12px;
+        margin: 3px 0;
+        border-radius: 6px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        font-size: 12px;
+      }
+      .issue-section {
+        color: var(--accent2);
+        font-weight: 600;
+        min-width: 110px;
+        text-transform: capitalize;
+      }
+      .issue-url {
+        color: var(--muted);
+        font-size: 11px;
+      }
 
-    .export-row { display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end; }
-    .export-row button {
-      padding: 8px 18px; font-size: 13px; background: var(--surface2);
-      color: var(--text); border: 1px solid var(--border); border-radius: 8px;
-      cursor: pointer; transition: background 0.2s;
-    }
-    .export-row button:hover { background: var(--surface); }
+      .export-row {
+        display: flex;
+        gap: 10px;
+        margin-top: 16px;
+        justify-content: flex-end;
+      }
+      .export-row button {
+        padding: 8px 18px;
+        font-size: 13px;
+        background: var(--surface2);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .export-row button:hover {
+        background: var(--surface);
+      }
 
-    .summary-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px,1fr)); gap: 10px; margin: 16px 0; }
-    .summary-card {
-      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
-      padding: 14px; text-align: center;
-    }
-    .summary-card .big { font-size: 24px; font-weight: 700; }
-    .summary-card .lbl { font-size: 11px; color: var(--muted); margin-top: 4px; }
+      /* ---------- Pre-scan branch picker ---------- */
+      .prescan-panel {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 20px;
+        margin: 12px 0;
+      }
+      .prescan-panel h3 {
+        font-size: 15px;
+        margin-bottom: 4px;
+      }
+      .prescan-meta {
+        color: var(--muted);
+        font-size: 13px;
+        margin-bottom: 14px;
+      }
+      .filter-modes {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+      }
+      .filter-mode-btn {
+        padding: 8px 16px;
+        font-size: 12px;
+        font-weight: 600;
+        background: var(--surface2);
+        color: var(--muted);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.15s;
+        white-space: nowrap;
+      }
+      .filter-mode-btn:hover {
+        color: var(--text);
+        border-color: var(--accent);
+      }
+      .filter-mode-btn.active {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+      .branch-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        max-height: 340px;
+        overflow-y: auto;
+        padding-right: 6px;
+      }
+      .branch-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.15s;
+        font-size: 13px;
+        user-select: none;
+      }
+      .branch-item:hover {
+        border-color: var(--accent);
+      }
+      .branch-item.checked {
+        border-color: var(--accent);
+        background: rgba(108, 99, 255, 0.08);
+      }
+      .branch-item input[type="checkbox"] {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 18px;
+        height: 18px;
+        border: 2px solid var(--border);
+        border-radius: 4px;
+        background: var(--surface);
+        cursor: pointer;
+        flex-shrink: 0;
+        position: relative;
+        transition: all 0.15s;
+      }
+      .branch-item input[type="checkbox"]:checked {
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+      .branch-item input[type="checkbox"]:checked::after {
+        content: "✓";
+        position: absolute;
+        top: -1px;
+        left: 2px;
+        color: #fff;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .branch-name {
+        flex: 1;
+        font-family: "SF Mono", monospace;
+        color: var(--accent2);
+        font-size: 13px;
+      }
+      .branch-count {
+        color: var(--muted);
+        font-size: 12px;
+        min-width: 55px;
+        text-align: right;
+      }
+      .branch-tag {
+        display: inline-block;
+        padding: 1px 8px;
+        border-radius: 10px;
+        font-size: 10px;
+        font-weight: 600;
+        background: rgba(79, 195, 247, 0.12);
+        color: var(--accent2);
+        margin-left: 4px;
+      }
+      .prescan-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 14px;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .prescan-selected {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .prescan-selected strong {
+        color: var(--text);
+      }
+      .prescan-actions {
+        display: flex;
+        gap: 8px;
+      }
+      .start-crawl-btn {
+        padding: 10px 28px;
+        font-size: 14px;
+        font-weight: 600;
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: opacity 0.2s;
+      }
+      .start-crawl-btn:disabled {
+        opacity: 0.5;
+        cursor: wait;
+      }
+      .start-crawl-btn:hover:not(:disabled) {
+        opacity: 0.85;
+      }
+      .rescan-btn {
+        padding: 10px 18px;
+        font-size: 13px;
+        background: var(--surface2);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .rescan-btn:hover {
+        background: var(--surface);
+      }
 
-    .pass-rate-row { display: flex; align-items: center; gap: 10px; margin: 4px 0; font-size: 12px; }
-    .pass-rate-label { min-width: 130px; color: var(--muted); text-transform: capitalize; }
-    .pass-rate-bar-bg { flex: 1; height: 10px; background: var(--surface2); border-radius: 5px; overflow: hidden; }
-    .pass-rate-bar { height: 100%; border-radius: 5px; }
-    .pass-rate-pct { min-width: 40px; text-align: right; }
-  </style>
-</head>
-<body>
-<div class="container">
-  <div class="header">
-    <h1><span>SEO</span> Analyzer</h1>
-    <p>Full-site SEO analysis with JavaScript rendering — crawls all pages</p>
-  </div>
+      .summary-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 10px;
+        margin: 16px 0;
+      }
+      .summary-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 14px;
+        text-align: center;
+      }
+      .summary-card .big {
+        font-size: 24px;
+        font-weight: 700;
+      }
+      .summary-card .lbl {
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 4px;
+      }
 
-  <div class="input-row">
-    <input type="text" id="urlInput" placeholder="Enter site URL (e.g. https://example.com)" />
-    <span class="max-label">Max pages:</span>
-    <input type="number" class="max-pages" id="maxPages" value="50" min="1" max="200" />
-    <button id="goBtn" onclick="startCrawl()">Crawl &amp; Analyze</button>
-  </div>
+      .pass-rate-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 4px 0;
+        font-size: 12px;
+      }
+      .pass-rate-label {
+        min-width: 130px;
+        color: var(--muted);
+        text-transform: capitalize;
+      }
+      .pass-rate-bar-bg {
+        flex: 1;
+        height: 10px;
+        background: var(--surface2);
+        border-radius: 5px;
+        overflow: hidden;
+      }
+      .pass-rate-bar {
+        height: 100%;
+        border-radius: 5px;
+      }
+      .pass-rate-pct {
+        min-width: 40px;
+        text-align: right;
+      }
 
-  <div id="statusArea"></div>
+      /* Main navigation tabs */
+      .main-tabs {
+        display: flex;
+        gap: 8px;
+        margin: 20px 0 0;
+        border-bottom: 2px solid var(--border);
+        padding-bottom: 0;
+      }
+      .main-tab {
+        padding: 10px 24px;
+        font-size: 14px;
+        font-weight: 600;
+        background: transparent;
+        color: var(--muted);
+        border: none;
+        border-bottom: 3px solid transparent;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-bottom: -2px;
+      }
+      .main-tab:hover {
+        color: var(--text);
+      }
+      .main-tab.active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+      }
+      .main-tab-content {
+        display: none;
+        padding-top: 20px;
+      }
+      .main-tab-content.active {
+        display: block;
+      }
 
-  <div id="tabsWrap" style="display:none">
-    <div class="tabs">
-      <div class="tab active" data-tab="summary" onclick="switchTab('summary')">Site Summary</div>
-      <div class="tab" data-tab="pages" onclick="switchTab('pages')">All Pages</div>
-      <div class="tab" data-tab="issues" onclick="switchTab('issues')">All Issues</div>
+      /* Previous scans list */
+      .report-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin: 16px 0;
+      }
+      .report-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 18px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.15s;
+        font-size: 13px;
+      }
+      .report-item:hover {
+        border-color: var(--accent);
+        background: var(--surface2);
+      }
+      .report-name {
+        font-family: "SF Mono", monospace;
+        color: var(--text);
+        font-weight: 500;
+      }
+      .report-meta {
+        display: flex;
+        gap: 16px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1><span>SEO</span> Analyzer</h1>
+        <p>
+          Full-site SEO analysis with JavaScript rendering — crawls all pages
+        </p>
+      </div>
+
+      <!-- Main Navigation Tabs -->
+      <div class="main-tabs">
+        <button class="main-tab active" onclick="switchMainTab('home')">
+          Home
+        </button>
+        <button class="main-tab" onclick="switchMainTab('previous')">
+          Previous Scans
+        </button>
+      </div>
+
+      <!-- Home Tab: Scanning Interface -->
+      <div id="homeTab" class="main-tab-content active">
+        <div class="input-row">
+          <input
+            type="text"
+            id="urlInput"
+            placeholder="Enter site URL (e.g. https://example.com)"
+          />
+          <button id="goBtn" onclick="startPrescan()">Scan</button>
+        </div>
+
+        <div id="prescanArea"></div>
+        <div id="statusArea"></div>
+
+        <div id="tabsWrap" style="display: none">
+          <div class="tabs">
+            <div
+              class="tab active"
+              data-tab="summary"
+              onclick="switchTab('summary')"
+            >
+              Site Summary
+            </div>
+            <div class="tab" data-tab="pages" onclick="switchTab('pages')">
+              All Pages
+            </div>
+            <div class="tab" data-tab="issues" onclick="switchTab('issues')">
+              All Issues
+            </div>
+          </div>
+          <div id="summaryPanel" class="tab-panel active"></div>
+          <div id="pagesPanel" class="tab-panel"></div>
+          <div id="issuesPanel" class="tab-panel"></div>
+        </div>
+      </div>
+
+      <!-- Previous Scans Tab -->
+      <div id="previousTab" class="main-tab-content">
+        <h3 style="margin: 16px 0 8px; font-size: 16px">Saved Reports</h3>
+        <div id="reportListArea">
+          <div class="status">
+            <span class="spinner"></span>Loading reports…
+          </div>
+        </div>
+      </div>
     </div>
-    <div id="summaryPanel" class="tab-panel active"></div>
-    <div id="pagesPanel" class="tab-panel"></div>
-    <div id="issuesPanel" class="tab-panel"></div>
-  </div>
-</div>
 
-<div id="overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:100; overflow-y: auto;">
-  <div style="max-width:900px; margin:40px auto; padding:20px; background:var(--bg); border-radius:12px; border:1px solid var(--border); position:relative;">
-    <button onclick="document.getElementById('overlay').style.display='none'" style="position:absolute;top:12px;right:16px;background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;">&times;</button>
-    <div id="overlayContent"></div>
-  </div>
-</div>
+    <div
+      id="overlay"
+      style="
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 100;
+        overflow-y: auto;
+      "
+    >
+      <div
+        style="
+          max-width: 900px;
+          margin: 40px auto;
+          padding: 20px;
+          background: var(--bg);
+          border-radius: 12px;
+          border: 1px solid var(--border);
+          position: relative;
+        "
+      >
+        <button
+          onclick="document.getElementById('overlay').style.display = 'none'"
+          style="
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            background: none;
+            border: none;
+            color: var(--muted);
+            font-size: 22px;
+            cursor: pointer;
+          "
+        >
+          &times;
+        </button>
+        <div id="overlayContent"></div>
+      </div>
+    </div>
 
-<script>
-const $ = s => document.querySelector(s);
-const $$ = s => document.querySelectorAll(s);
+    <script>
+      const $ = (s) => document.querySelector(s);
+      const $$ = (s) => document.querySelectorAll(s);
 
-let pageReports = [];
-let siteSummary = null;
+      let pageReports = [];
+      let siteSummary = null;
+      let prescanData = null; // Stored prescan results
 
-function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
-function scoreClass(pct) { return pct >= 80 ? 'good' : pct >= 50 ? 'ok' : 'bad'; }
+      function esc(s) {
+        const d = document.createElement("div");
+        d.textContent = s;
+        return d.innerHTML;
+      }
+      function scoreClass(pct) {
+        return pct >= 80 ? "good" : pct >= 50 ? "ok" : "bad";
+      }
 
-$('#urlInput').addEventListener('keydown', e => { if (e.key === 'Enter') startCrawl(); });
+      $("#urlInput").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") startPrescan();
+      });
 
-async function startCrawl() {
-  const url = $('#urlInput').value.trim();
-  if (!url) return;
-  const maxPages = parseInt($('#maxPages').value) || 50;
-  const btn = $('#goBtn');
-  btn.disabled = true;
-  btn.textContent = 'Crawling…';
-  pageReports = [];
-  siteSummary = null;
-  $('#tabsWrap').style.display = 'none';
-  $('#statusArea').innerHTML = `
-    <div class="status"><span class="spinner"></span>Starting crawl…</div>
+      // ===================== MAIN TAB SWITCHING =====================
+
+      function switchMainTab(tab) {
+        $$(".main-tab").forEach((t) => t.classList.remove("active"));
+        $$(".main-tab-content").forEach((c) => c.classList.remove("active"));
+
+        if (tab === "home") {
+          $(".main-tab[onclick=\"switchMainTab('home')\"]").classList.add(
+            "active",
+          );
+          $("#homeTab").classList.add("active");
+        } else if (tab === "previous") {
+          $(".main-tab[onclick=\"switchMainTab('previous')\"]").classList.add(
+            "active",
+          );
+          $("#previousTab").classList.add("active");
+          loadReportsList();
+        }
+      }
+
+      async function loadReportsList() {
+        $("#reportListArea").innerHTML =
+          '<div class="status"><span class="spinner"></span>Loading reports…</div>';
+        try {
+          const res = await fetch("/api/reports");
+          const data = await res.json();
+          if (data.error) {
+            $("#reportListArea").innerHTML =
+              `<div class="status" style="color:var(--red)">${esc(data.error)}</div>`;
+            return;
+          }
+          renderReportsList(data.reports);
+        } catch (e) {
+          $("#reportListArea").innerHTML =
+            `<div class="status" style="color:var(--red)">Failed to load reports: ${esc(e.message)}</div>`;
+        }
+      }
+
+      function renderReportsList(reports) {
+        if (!reports || reports.length === 0) {
+          $("#reportListArea").innerHTML =
+            '<div class="status" style="color:var(--muted)">No saved reports yet. Run a scan from the Home tab.</div>';
+          return;
+        }
+
+        let html = '<div class="report-list">';
+        for (const r of reports) {
+          const date = new Date(r.modified);
+          const dateStr =
+            date.toLocaleDateString() + " " + date.toLocaleTimeString();
+          const sizeKB = Math.round(r.size / 1024);
+          html += `<div class="report-item" onclick="loadReport('${esc(r.filename)}')">
+            <span class="report-name">${esc(r.filename)}</span>
+            <div class="report-meta">
+              <span>${dateStr}</span>
+              <span>${sizeKB} KB</span>
+            </div>
+          </div>`;
+        }
+        html += "</div>";
+        $("#reportListArea").innerHTML = html;
+      }
+
+      async function loadReport(filename) {
+        $("#reportListArea").innerHTML =
+          '<div class="status"><span class="spinner"></span>Loading report…</div>';
+        try {
+          const res = await fetch(
+            `/api/reports/${encodeURIComponent(filename)}`,
+          );
+          const data = await res.json();
+          if (data.error) {
+            $("#reportListArea").innerHTML =
+              `<div class="status" style="color:var(--red)">${esc(data.error)}</div>`;
+            return;
+          }
+
+          // Load report data into the app state
+          pageReports = data.pages || [];
+          siteSummary = data.summary || null;
+
+          // Switch to home tab and render results
+          switchMainTab("home");
+          $("#tabsWrap").style.display = "";
+          $("#statusArea").innerHTML =
+            `<div class="status" style="color:var(--green)">✓ Loaded saved report: ${esc(filename)}</div>`;
+          $("#prescanArea").innerHTML = "";
+          renderAll();
+        } catch (e) {
+          $("#reportListArea").innerHTML =
+            `<div class="status" style="color:var(--red)">Failed to load report: ${esc(e.message)}</div>`;
+        }
+      }
+
+      // ===================== PRESCAN =====================
+
+      async function startPrescan() {
+        const url = $("#urlInput").value.trim();
+        if (!url) return;
+        const btn = $("#goBtn");
+        btn.disabled = true;
+        btn.textContent = "Scanning…";
+        prescanData = null;
+        $("#prescanArea").innerHTML = "";
+        $("#tabsWrap").style.display = "none";
+        $("#statusArea").innerHTML = `
+          <div class="status"><span class="spinner"></span>Pre-scanning site — discovering pages…</div>`;
+
+        try {
+          const res = await fetch("/api/prescan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url }),
+          });
+          const data = await res.json();
+          if (data.error) {
+            $("#statusArea").innerHTML =
+              `<div class="status" style="color:var(--red)">${esc(data.error)}</div>`;
+            btn.disabled = false;
+            btn.textContent = "Scan";
+            return;
+          }
+          prescanData = data;
+          $("#statusArea").innerHTML = "";
+          renderPrescanPanel();
+        } catch (e) {
+          $("#statusArea").innerHTML =
+            `<div class="status" style="color:var(--red)">Failed: ${esc(e.message)}</div>`;
+        }
+        btn.disabled = false;
+        btn.textContent = "Scan";
+      }
+
+      function renderPrescanPanel() {
+        const d = prescanData;
+        if (!d) return;
+
+        const branches = Object.entries(d.branches);
+        const navBranches = new Set(d.navbar_branches || []);
+        const navbarUrlSet = new Set(d.navbar_urls || []);
+
+        let html = `<div class="prescan-panel">`;
+        html += `<h3>Select Pages to Crawl</h3>`;
+        html += `<div class="prescan-meta">Found <strong>${d.total_urls}</strong> URLs across <strong>${branches.length}</strong> sections on <strong>${d.root_netloc}</strong></div>`;
+
+        // Filter mode buttons
+        html += `<div class="filter-modes">`;
+        html += `<button class="filter-mode-btn" onclick="applyFilterMode('navbar')">Navbar Pages Only</button>`;
+        html += `<button class="filter-mode-btn" onclick="applyFilterMode('navbar_sub')">Navbar + Subpages</button>`;
+        html += `<button class="filter-mode-btn active" onclick="applyFilterMode('all')">All Pages</button>`;
+        html += `<button class="filter-mode-btn" onclick="applyFilterMode('none')">Deselect All</button>`;
+        html += `</div>`;
+
+        // Branch list
+        html += `<div class="branch-list">`;
+        for (const [branch, info] of branches) {
+          const isNav = navBranches.has(branch);
+          html += `<label class="branch-item checked" data-branch="${esc(branch)}">
+            <input type="checkbox" checked onchange="onBranchToggle(this)">
+            <span class="branch-name">${esc(branch)}${isNav ? '<span class="branch-tag">nav</span>' : ""}</span>
+            <span class="branch-count">${info.count} page${info.count !== 1 ? "s" : ""}</span>
+          </label>`;
+        }
+        html += `</div>`;
+
+        // Footer
+        html += `<div class="prescan-footer">
+          <span class="prescan-selected" id="prescanCount"></span>
+          <div class="prescan-actions">
+            <button class="rescan-btn" onclick="startPrescan()">Re-scan</button>
+            <button class="start-crawl-btn" id="startCrawlBtn" onclick="startFilteredCrawl()">Start Crawl</button>
+          </div>
+        </div>`;
+
+        html += `</div>`;
+        $("#prescanArea").innerHTML = html;
+        updatePrescanCount();
+      }
+
+      function onBranchToggle(cb) {
+        const item = cb.closest(".branch-item");
+        item.classList.toggle("checked", cb.checked);
+        // Clear active filter mode button
+        $$(".filter-mode-btn").forEach((b) => b.classList.remove("active"));
+        updatePrescanCount();
+      }
+
+      function updatePrescanCount() {
+        const checked = [...$$(".branch-item input[type='checkbox']")]
+          .filter((cb) => cb.checked)
+          .map((cb) => cb.closest(".branch-item").dataset.branch);
+        
+        const filterMode = prescanData?._filterMode || "all";
+        let totalUrls = 0;
+        
+        if (filterMode === "navbar") {
+          // Count only top-level navbar URLs in checked branches
+          for (const u of prescanData.navbar_urls || []) {
+            try {
+              const path = new URL(u).pathname.replace(/\/+$/g, "") || "/";
+              const segments = path.split("/").filter(Boolean);
+              if (segments.length <= 1) {
+                const branch = segments.length ? "/" + segments[0] + "/" : "/";
+                if (checked.includes(branch)) totalUrls++;
+              }
+            } catch { /* skip */ }
+          }
+          // +1 for homepage if checked
+          if (checked.includes("/")) totalUrls = Math.max(totalUrls, 1);
+        } else {
+          for (const b of checked) {
+            totalUrls += prescanData.branches[b]?.count || 0;
+          }
+        }
+        
+        const el = $("#prescanCount");
+        const label = filterMode === "navbar" ? "navbar pages" : `pages in <strong>${checked.length}</strong> sections`;
+        if (el)
+          el.innerHTML = `<strong>${totalUrls}</strong> ${label} selected`;
+      }
+
+      function applyFilterMode(mode) {
+        if (!prescanData) return;
+        $$(".filter-mode-btn").forEach((b) => b.classList.remove("active"));
+        event.target.classList.add("active");
+
+        const navBranches = new Set(prescanData.navbar_branches || []);
+
+        // Store filter mode for use during crawl
+        prescanData._filterMode = mode;
+
+        $$(".branch-item").forEach((item) => {
+          const branch = item.dataset.branch;
+          const cb = item.querySelector("input[type='checkbox']");
+          let checked = false;
+
+          if (mode === "all") {
+            checked = true;
+          } else if (mode === "none") {
+            checked = false;
+          } else if (mode === "navbar") {
+            // For navbar-only, we'll filter URLs at crawl time
+            // But check the branches that contain navbar links
+            checked = navBranches.has(branch) || branch === "/";
+          } else if (mode === "navbar_sub") {
+            // Navbar branches (all pages under sections with nav links)
+            checked = navBranches.has(branch) || branch === "/";
+          }
+
+          cb.checked = checked;
+          item.classList.toggle("checked", checked);
+        });
+
+        updatePrescanCount();
+      }
+
+      // ===================== CRAWL =====================
+
+      async function startFilteredCrawl() {
+        if (!prescanData) return;
+
+        // Collect selected branches
+        const selectedBranches = [...$$(".branch-item input[type='checkbox']")]
+          .filter((cb) => cb.checked)
+          .map((cb) => cb.closest(".branch-item").dataset.branch);
+
+        if (!selectedBranches.length) {
+          alert("Select at least one section to crawl.");
+          return;
+        }
+
+        // Filter URLs based on mode and selected branches
+        const filterMode = prescanData._filterMode || "all";
+        let seedUrls;
+
+        if (filterMode === "navbar") {
+          // Navbar Pages Only — only the direct top-level URLs from the nav.
+          // e.g. /insights but NOT /insights/some-post
+          // Keep only URLs whose path has at most 1 segment (the branch root).
+          const seen = new Set();
+          seedUrls = [];
+          for (const u of prescanData.navbar_urls || []) {
+            try {
+              const path = new URL(u).pathname.replace(/\/+$/g, "") || "/";
+              const segments = path.split("/").filter(Boolean);
+              // Only include top-level pages (0 or 1 path segments)
+              if (segments.length <= 1) {
+                const norm = new URL(u).origin + (path === "/" ? "/" : path);
+                if (!seen.has(norm)) {
+                  seen.add(norm);
+                  seedUrls.push(u);
+                }
+              }
+            } catch { /* skip */ }
+          }
+          // Always include homepage
+          if (!seedUrls.some(u => { try { return new URL(u).pathname.replace(/\/+$/g, "") === ""; } catch { return false; } })) {
+            seedUrls.unshift(prescanData.resolved_url);
+          }
+        } else {
+          // Navbar + Subpages or All Pages - filter by branches
+          seedUrls = prescanData.all_urls.filter((u) => {
+            try {
+              const path = new URL(u).pathname;
+              const parts = path
+                .replace(/^\/|\/$/g, "")
+                .split("/")
+                .filter(Boolean);
+              const branch = parts.length ? "/" + parts[0] + "/" : "/";
+              return selectedBranches.includes(branch);
+            } catch {
+              return false;
+            }
+          });
+        }
+
+        const btn = $("#startCrawlBtn");
+        btn.disabled = true;
+        btn.textContent = "Crawling…";
+        pageReports = [];
+        siteSummary = null;
+        $("#tabsWrap").style.display = "none";
+        const maxPages = Math.min(seedUrls.length + 50, 500); // Allow some headroom for discovered pages
+        $("#statusArea").innerHTML = `
+    <div class="status"><span class="spinner"></span>Crawling ${seedUrls.length} pages…</div>
     <div class="progress-bar-wrap"><div class="progress-bar" id="progBar" style="width:0%"></div></div>
     <div class="crawl-log" id="crawlLog"></div>`;
 
-  try {
-    const res = await fetch('/api/crawl', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ url, max_pages: maxPages })
-    });
-    const d = await res.json();
-    if (d.error) {
-      $('#statusArea').innerHTML = `<div class="status" style="color:var(--red)">${esc(d.error)}</div>`;
-      btn.disabled = false; btn.textContent = 'Crawl & Analyze'; return;
-    }
-  } catch (e) {
-    $('#statusArea').innerHTML = `<div class="status" style="color:var(--red)">Failed: ${esc(e.message)}</div>`;
-    btn.disabled = false; btn.textContent = 'Crawl & Analyze'; return;
-  }
+        try {
+          const res = await fetch("/api/crawl", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              url: prescanData.resolved_url,
+              max_pages: maxPages,
+              seed_urls: seedUrls,
+              allowed_branches: filterMode === "navbar" ? [] : selectedBranches,
+            }),
+          });
+          const d = await res.json();
+          if (d.error) {
+            $("#statusArea").innerHTML =
+              `<div class="status" style="color:var(--red)">${esc(d.error)}</div>`;
+            btn.disabled = false;
+            btn.textContent = "Start Crawl";
+            return;
+          }
+        } catch (e) {
+          $("#statusArea").innerHTML =
+            `<div class="status" style="color:var(--red)">Failed: ${esc(e.message)}</div>`;
+          btn.disabled = false;
+          btn.textContent = "Start Crawl";
+          return;
+        }
 
-  const es = new EventSource('/api/crawl/stream');
-  es.onmessage = (ev) => {
-    const msg = JSON.parse(ev.data);
-    const log = $('#crawlLog');
+        const es = new EventSource("/api/crawl/stream");
+        es.onmessage = (ev) => {
+          const msg = JSON.parse(ev.data);
+          const log = $("#crawlLog");
 
-    if (msg.type === 'status') {
-      const pct = Math.min(100, Math.round(msg.page / maxPages * 100));
-      $('#progBar').style.width = pct + '%';
-      log.innerHTML += `<div>Crawling (${msg.page}): ${esc(msg.url)}</div>`;
-      log.scrollTop = log.scrollHeight;
-    }
-    else if (msg.type === 'page_done') {
-      pageReports.push(msg.report);
-      log.innerHTML += `<div class="ok">✓ ${esc(msg.report.url)} — ${msg.report.scores.percentage}%</div>`;
-      log.scrollTop = log.scrollHeight;
-    }
-    else if (msg.type === 'page_error') {
-      log.innerHTML += `<div class="err">✗ ${esc(msg.url)}: ${esc(msg.error)}</div>`;
-      log.scrollTop = log.scrollHeight;
-    }
-    else if (msg.type === 'complete') {
-      es.close();
-      siteSummary = msg.summary;
-      $('#progBar').style.width = '100%';
-      $('#statusArea').innerHTML = `<div class="status" style="color:var(--green)">✓ Crawl complete — ${siteSummary.total_pages} pages analyzed</div>`;
-      btn.disabled = false; btn.textContent = 'Crawl & Analyze';
-      renderAll();
-    }
-    else if (msg.type === 'error') {
-      es.close();
-      $('#statusArea').innerHTML += `<div class="status" style="color:var(--red)">${esc(msg.error)}</div>`;
-      btn.disabled = false; btn.textContent = 'Crawl & Analyze';
-      if (pageReports.length) renderAll();
-    }
-  };
-  es.onerror = () => {
-    es.close();
-    btn.disabled = false; btn.textContent = 'Crawl & Analyze';
-    if (pageReports.length) {
-      if (!siteSummary) siteSummary = buildClientSummary();
-      renderAll();
-    }
-  };
-}
+          if (msg.type === "status") {
+            const total = msg.total_found || maxPages;
+            const pct = Math.min(100, Math.round((msg.page / total) * 100));
+            $("#progBar").style.width = pct + "%";
+            const statusText = msg.message
+              ? `<div>${esc(msg.message)}</div>`
+              : `<div>Crawling (${msg.page}/${total}): ${esc(msg.url)}</div>`;
+            log.innerHTML += statusText;
+            log.scrollTop = log.scrollHeight;
+          } else if (msg.type === "page_done") {
+            pageReports.push(msg.report);
+            log.innerHTML += `<div class="ok">✓ ${esc(msg.report.url)} — ${msg.report.scores.percentage}%</div>`;
+            log.scrollTop = log.scrollHeight;
+          } else if (msg.type === "page_error") {
+            log.innerHTML += `<div class="err">✗ ${esc(msg.url)}: ${esc(msg.error)}</div>`;
+            log.scrollTop = log.scrollHeight;
+          } else if (msg.type === "complete") {
+            es.close();
+            siteSummary = msg.summary;
+            $("#progBar").style.width = "100%";
+            $("#statusArea").innerHTML =
+              `<div class="status" style="color:var(--green)">✓ Crawl complete — ${siteSummary.total_pages} pages analyzed</div>`;
+            btn.disabled = false;
+            btn.textContent = "Start Crawl";
+            renderAll();
+          } else if (msg.type === "error") {
+            es.close();
+            $("#statusArea").innerHTML +=
+              `<div class="status" style="color:var(--red)">${esc(msg.error)}</div>`;
+            btn.disabled = false;
+            btn.textContent = "Start Crawl";
+            if (pageReports.length) renderAll();
+          }
+        };
+        es.onerror = () => {
+          es.close();
+          btn.disabled = false;
+          btn.textContent = "Start Crawl";
+          if (pageReports.length) {
+            if (!siteSummary) siteSummary = buildClientSummary();
+            renderAll();
+          }
+        };
+      }
 
-function buildClientSummary() {
-  const total = pageReports.length;
-  const avg = total ? Math.round(pageReports.reduce((s,r)=>s+r.scores.percentage,0)/total) : 0;
-  return { total_pages: total, avg_score: avg, total_issues: 0, all_issues: [], site_keywords: [], site_bigrams: [], worst_pages: [], section_pass_rates: {} };
-}
+      function buildClientSummary() {
+        const total = pageReports.length;
+        const avg = total
+          ? Math.round(
+              pageReports.reduce((s, r) => s + r.scores.percentage, 0) / total,
+            )
+          : 0;
+        return {
+          total_pages: total,
+          avg_score: avg,
+          total_issues: 0,
+          all_issues: [],
+          site_keywords: [],
+          site_bigrams: [],
+          worst_pages: [],
+          section_pass_rates: {},
+        };
+      }
 
-function switchTab(name) {
-  $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
-  $$('.tab-panel').forEach(p => p.classList.remove('active'));
-  $(`#${name}Panel`).classList.add('active');
-}
+      function switchTab(name) {
+        $$(".tab").forEach((t) =>
+          t.classList.toggle("active", t.dataset.tab === name),
+        );
+        $$(".tab-panel").forEach((p) => p.classList.remove("active"));
+        $(`#${name}Panel`).classList.add("active");
+      }
 
-function renderAll() {
-  $('#tabsWrap').style.display = '';
-  renderSummary();
-  renderPagesList();
-  renderIssuesList();
-  switchTab('summary');
-}
+      function renderAll() {
+        $("#tabsWrap").style.display = "";
+        renderSummary();
+        renderPagesList();
+        renderIssuesList();
+        switchTab("summary");
+      }
 
-function renderSummary() {
-  const s = siteSummary;
-  if (!s) return;
-  let h = '';
+      function renderSummary() {
+        const s = siteSummary;
+        if (!s) return;
+        let h = "";
 
-  h += `<div class="summary-cards">
+        h += `<div class="summary-cards">
     <div class="summary-card"><div class="big" style="color:${scoreColor(s.avg_score)}">${s.avg_score}%</div><div class="lbl">Avg Score</div></div>
     <div class="summary-card"><div class="big">${s.total_pages}</div><div class="lbl">Pages</div></div>
     <div class="summary-card"><div class="big">${s.total_words?.toLocaleString() || 0}</div><div class="lbl">Total Words</div></div>
     <div class="summary-card"><div class="big" style="color:var(--red)">${s.total_issues}</div><div class="lbl">Issues</div></div>
   </div>`;
 
-  if (s.section_pass_rates && Object.keys(s.section_pass_rates).length) {
-    h += `<h3 style="margin:16px 0 8px;font-size:14px;">Check Pass Rates Across All Pages</h3>`;
-    const entries = Object.entries(s.section_pass_rates).sort((a,b) => {
-      return (a[1].pass/a[1].total) - (b[1].pass/b[1].total);
-    });
-    for (const [name, data] of entries) {
-      const pct = Math.round(data.pass / data.total * 100);
-      const color = pct >= 80 ? 'var(--green)' : pct >= 50 ? 'var(--yellow)' : 'var(--red)';
-      h += `<div class="pass-rate-row">
-        <span class="pass-rate-label">${esc(name.replace(/_/g,' '))}</span>
+        if (s.section_pass_rates && Object.keys(s.section_pass_rates).length) {
+          h += `<h3 style="margin:16px 0 8px;font-size:14px;">Check Pass Rates Across All Pages</h3>`;
+          const entries = Object.entries(s.section_pass_rates).sort((a, b) => {
+            return a[1].pass / a[1].total - b[1].pass / b[1].total;
+          });
+          for (const [name, data] of entries) {
+            const pct = Math.round((data.pass / data.total) * 100);
+            const color =
+              pct >= 80
+                ? "var(--green)"
+                : pct >= 50
+                  ? "var(--yellow)"
+                  : "var(--red)";
+            h += `<div class="pass-rate-row">
+        <span class="pass-rate-label">${esc(name.replace(/_/g, " "))}</span>
         <div class="pass-rate-bar-bg"><div class="pass-rate-bar" style="width:${pct}%;background:${color}"></div></div>
         <span class="pass-rate-pct" style="color:${color}">${pct}%</span>
       </div>`;
-    }
-  }
+          }
+        }
 
-  if (s.site_keywords?.length) {
-    const maxC = s.site_keywords[0].count;
-    h += `<h3 style="margin:16px 0 8px;font-size:14px;">Site-Wide Top Keywords</h3>`;
-    h += `<table class="kw-table"><tr><th>Keyword</th><th>Count</th><th></th></tr>`;
-    for (const kw of s.site_keywords) {
-      const w = Math.round(kw.count / maxC * 120);
-      h += `<tr><td>${esc(kw.word)}</td><td>${kw.count}</td><td><span class="kw-bar" style="width:${w}px"></span></td></tr>`;
-    }
-    h += `</table>`;
-  }
+        if (s.site_keywords?.length) {
+          const maxC = s.site_keywords[0].count;
+          h += `<h3 style="margin:16px 0 8px;font-size:14px;">Site-Wide Top Keywords</h3>`;
+          h += `<table class="kw-table"><tr><th>Keyword</th><th>Count</th><th></th></tr>`;
+          for (const kw of s.site_keywords) {
+            const w = Math.round((kw.count / maxC) * 120);
+            h += `<tr><td>${esc(kw.word)}</td><td>${kw.count}</td><td><span class="kw-bar" style="width:${w}px"></span></td></tr>`;
+          }
+          h += `</table>`;
+        }
 
-  if (s.site_bigrams?.length) {
-    h += `<h3 style="margin:16px 0 8px;font-size:14px;">Site-Wide Top Phrases</h3>`;
-    h += `<table class="kw-table"><tr><th>Phrase</th><th>Count</th></tr>`;
-    for (const bg of s.site_bigrams) h += `<tr><td>${esc(bg.phrase)}</td><td>${bg.count}</td></tr>`;
-    h += `</table>`;
-  }
+        if (s.site_bigrams?.length) {
+          h += `<h3 style="margin:16px 0 8px;font-size:14px;">Site-Wide Top Phrases</h3>`;
+          h += `<table class="kw-table"><tr><th>Phrase</th><th>Count</th></tr>`;
+          for (const bg of s.site_bigrams)
+            h += `<tr><td>${esc(bg.phrase)}</td><td>${bg.count}</td></tr>`;
+          h += `</table>`;
+        }
 
-  if (s.worst_pages?.length) {
-    h += `<h3 style="margin:16px 0 8px;font-size:14px;">Pages Needing Most Work</h3>`;
-    for (const pg of s.worst_pages) {
-      h += `<div class="page-list-item" onclick="showPageDetail('${esc(pg.url)}')">
+        if (s.worst_pages?.length) {
+          h += `<h3 style="margin:16px 0 8px;font-size:14px;">Pages Needing Most Work</h3>`;
+          for (const pg of s.worst_pages) {
+            h += `<div class="page-list-item" onclick="showPageDetail('${esc(pg.url)}')">
         <div class="page-score ${scoreClass(pg.score)}" style="border:2px solid">${pg.score}%</div>
         <span class="page-url">${esc(pg.url)}</span>
         <span class="page-issues">${pg.issue_count} issues</span>
       </div>`;
-    }
-  }
+          }
+        }
 
-  h += `<div class="export-row">
+        h += `<div class="export-row">
     <button onclick="exportFullJSON()">Export Full JSON</button>
     <button onclick="exportFullText()">Export Full Text Report</button>
   </div>`;
 
-  $('#summaryPanel').innerHTML = h;
-}
+        $("#summaryPanel").innerHTML = h;
+      }
 
-function scoreColor(pct) { return pct >= 80 ? 'var(--green)' : pct >= 50 ? 'var(--yellow)' : 'var(--red)'; }
+      function scoreColor(pct) {
+        return pct >= 80
+          ? "var(--green)"
+          : pct >= 50
+            ? "var(--yellow)"
+            : "var(--red)";
+      }
 
-function renderPagesList() {
-  let h = '';
-  const sorted = [...pageReports].sort((a,b) => a.scores.percentage - b.scores.percentage);
-  for (const r of sorted) {
-    const pct = r.scores.percentage;
-    const issues = (r.all_issues||[]).length;
-    h += `<div class="page-list-item" onclick="showPageDetail('${esc(r.url)}')">
+      function renderPagesList() {
+        let h = "";
+        const sorted = [...pageReports].sort(
+          (a, b) => a.scores.percentage - b.scores.percentage,
+        );
+        for (const r of sorted) {
+          const pct = r.scores.percentage;
+          const issues = (r.all_issues || []).length;
+          h += `<div class="page-list-item" onclick="showPageDetail('${esc(r.url)}')">
       <div class="page-score ${scoreClass(pct)}" style="border:2px solid">${pct}%</div>
       <span class="page-url">${esc(r.url)}</span>
-      <span class="page-issues">${issues} issue${issues!==1?'s':''}</span>
+      <span class="page-issues">${issues} issue${issues !== 1 ? "s" : ""}</span>
     </div>`;
-  }
-  if (!h) h = '<div class="status">No pages analyzed yet.</div>';
-  $('#pagesPanel').innerHTML = h;
-}
+        }
+        if (!h) h = '<div class="status">No pages analyzed yet.</div>';
+        $("#pagesPanel").innerHTML = h;
+      }
 
-function renderIssuesList() {
-  const allIssues = [];
-  for (const r of pageReports) {
-    for (const iss of (r.all_issues||[])) {
-      allIssues.push({...iss, url: r.url});
-    }
-  }
-  let h = `<h3 style="margin-bottom:10px">All Issues (${allIssues.length})</h3>`;
-  if (!allIssues.length) {
-    h += '<div class="status" style="color:var(--green)">No issues found!</div>';
-  }
-  const grouped = {};
-  for (const iss of allIssues) {
-    if (!grouped[iss.section]) grouped[iss.section] = [];
-    grouped[iss.section].push(iss);
-  }
-  for (const [section, issues] of Object.entries(grouped).sort((a,b)=>b[1].length-a[1].length)) {
-    h += `<h4 style="margin:12px 0 4px;font-size:13px;color:var(--accent2);text-transform:capitalize">${esc(section.replace(/_/g,' '))} (${issues.length})</h4>`;
-    for (const iss of issues) {
-      h += `<div class="issue-row">
+      function renderIssuesList() {
+        const allIssues = [];
+        for (const r of pageReports) {
+          for (const iss of r.all_issues || []) {
+            allIssues.push({ ...iss, url: r.url });
+          }
+        }
+        let h = `<h3 style="margin-bottom:10px">All Issues (${allIssues.length})</h3>`;
+        if (!allIssues.length) {
+          h +=
+            '<div class="status" style="color:var(--green)">No issues found!</div>';
+        }
+        const grouped = {};
+        for (const iss of allIssues) {
+          if (!grouped[iss.section]) grouped[iss.section] = [];
+          grouped[iss.section].push(iss);
+        }
+        for (const [section, issues] of Object.entries(grouped).sort(
+          (a, b) => b[1].length - a[1].length,
+        )) {
+          h += `<h4 style="margin:12px 0 4px;font-size:13px;color:var(--accent2);text-transform:capitalize">${esc(section.replace(/_/g, " "))} (${issues.length})</h4>`;
+          for (const iss of issues) {
+            h += `<div class="issue-row">
         <span style="flex:1">${esc(iss.issue)}</span>
         <span class="issue-url">${esc(shortenUrl(iss.url))}</span>
       </div>`;
-    }
-  }
+          }
+        }
 
-  h += `<div class="export-row" style="margin-top:12px">
+        h += `<div class="export-row" style="margin-top:12px">
     <button onclick="exportFullJSON()">Export Full JSON</button>
     <button onclick="exportFullText()">Export Full Text Report</button>
   </div>`;
 
-  $('#issuesPanel').innerHTML = h;
-}
+        $("#issuesPanel").innerHTML = h;
+      }
 
-function shortenUrl(url) {
-  try { return new URL(url).pathname || '/'; } catch { return url; }
-}
+      function shortenUrl(url) {
+        try {
+          return new URL(url).pathname || "/";
+        } catch {
+          return url;
+        }
+      }
 
-function showPageDetail(url) {
-  const r = pageReports.find(p => p.url === url);
-  if (!r) return;
-  $('#overlay').style.display = '';
-  $('#overlayContent').innerHTML = renderSinglePageReport(r);
-}
+      function showPageDetail(url) {
+        const r = pageReports.find((p) => p.url === url);
+        if (!r) return;
+        $("#overlay").style.display = "";
+        $("#overlayContent").innerHTML = renderSinglePageReport(r);
+      }
 
-function renderSinglePageReport(r) {
-  const pct = r.scores.percentage;
-  let html = '';
-  html += `<div class="score-banner">
+      function renderSinglePageReport(r) {
+        const pct = r.scores.percentage;
+        let html = "";
+        html += `<div class="score-banner">
     <div class="score-circle ${scoreClass(pct)}">${pct}%</div>
     <div class="score-meta">
       <div class="url">${esc(r.url)}</div>
       <div class="stats">${r.scores.passed} / ${r.scores.total} checks passed • ${r.sections.content?.word_count || 0} words</div>
     </div>
-    <div class="timing">Status ${r.timing.status_code || '?'}<br>${r.timing.total_ms}ms</div>
+    <div class="timing">Status ${r.timing.status_code || "?"}<br>${r.timing.total_ms}ms</div>
   </div>`;
 
-  const sectionDefs = [
-    {key:'title',label:'Title Tag'},{key:'meta_description',label:'Meta Description'},
-    {key:'content',label:'Keywords & Content'},{key:'headings',label:'Heading Structure'},
-    {key:'images',label:'Images'},{key:'links',label:'Links'},
-    {key:'canonical',label:'Canonical URL'},{key:'url_structure',label:'URL Structure'},
-    {key:'https',label:'HTTPS'},{key:'viewport',label:'Viewport'},
-    {key:'charset',label:'Charset'},{key:'language',label:'Language'},
-    {key:'robots',label:'Robots Meta'},{key:'open_graph',label:'Open Graph'},
-    {key:'twitter_card',label:'Twitter Card'},{key:'structured_data',label:'Structured Data'},
-    {key:'hreflang',label:'Hreflang'},{key:'performance_hints',label:'Performance Hints'},
-  ];
+        const sectionDefs = [
+          { key: "title", label: "Title Tag" },
+          { key: "meta_description", label: "Meta Description" },
+          { key: "content", label: "Keywords & Content" },
+          { key: "headings", label: "Heading Structure" },
+          { key: "images", label: "Images" },
+          { key: "links", label: "Links" },
+          { key: "canonical", label: "Canonical URL" },
+          { key: "url_structure", label: "URL Structure" },
+          { key: "https", label: "HTTPS" },
+          { key: "viewport", label: "Viewport" },
+          { key: "charset", label: "Charset" },
+          { key: "language", label: "Language" },
+          { key: "robots", label: "Robots Meta" },
+          { key: "open_graph", label: "Open Graph" },
+          { key: "twitter_card", label: "Twitter Card" },
+          { key: "structured_data", label: "Structured Data" },
+          { key: "hreflang", label: "Hreflang" },
+          { key: "performance_hints", label: "Performance Hints" },
+        ];
 
-  for (const sd of sectionDefs) {
-    const sec = r.sections[sd.key];
-    if (!sec) continue;
-    const pass = sec.pass;
-    const open = !pass ? ' open' : '';
-    html += `<div class="section${open}">
+        for (const sd of sectionDefs) {
+          const sec = r.sections[sd.key];
+          if (!sec) continue;
+          const pass = sec.pass;
+          const open = !pass ? " open" : "";
+          html += `<div class="section${open}">
       <div class="section-header" onclick="this.parentElement.classList.toggle('open')">
-        <span class="section-title"><span class="badge ${pass?'pass':'fail'}">${pass?'PASS':'FIX'}</span> ${sd.label}</span>
+        <span class="section-title"><span class="badge ${pass ? "pass" : "fail"}">${pass ? "PASS" : "FIX"}</span> ${sd.label}</span>
         <span class="chevron">&#9654;</span>
       </div>
       <div class="section-body">${renderSectionBody(sd.key, sec)}</div>
     </div>`;
-  }
-
-  if (r.all_issues?.length) {
-    html += `<div class="issues-summary"><h3>All Issues (${r.all_issues.length})</h3>`;
-    for (const iss of r.all_issues) {
-      html += `<div class="issue-row"><span class="issue-section">${esc(iss.section.replace(/_/g,' '))}</span> <span>${esc(iss.issue)}</span></div>`;
-    }
-    html += `</div>`;
-  }
-  return html;
-}
-
-function renderSectionBody(key, sec) {
-  let h = '';
-  const issues = sec.issues || [];
-  switch(key) {
-    case 'title': case 'meta_description':
-      h += kv('Value', sec.value || '(empty)');
-      h += kv('Length', sec.length + ' characters');
-      break;
-    case 'canonical': case 'robots': case 'viewport': case 'charset': case 'language':
-      h += kv('Value', sec.value || '(not set)');
-      break;
-    case 'url_structure':
-      h += kv('URL', sec.url); h += kv('Path', sec.path); break;
-    case 'https':
-      h += kv('Secure', sec.secure ? 'Yes (HTTPS)' : 'No — HTTP only'); break;
-    case 'headings':
-      for (let i=1;i<=6;i++) h += kv(`H${i} count`, sec.counts[`h${i}`]);
-      if (sec.h1?.length) h += kv('H1 text', sec.h1.join(' | '));
-      if (sec.h2?.length) h += kv('H2 tags', sec.h2.join(' | '));
-      break;
-    case 'images':
-      h += kv('Total images', sec.total);
-      h += kv('Missing alt', sec.missing_alt?.length || 0);
-      h += kv('Empty alt', sec.empty_alt?.length || 0);
-      break;
-    case 'links':
-      h += kv('Internal', sec.internal); h += kv('External', sec.external); h += kv('Nofollow', sec.nofollow); break;
-    case 'open_graph': case 'twitter_card':
-      for (const [k,v] of Object.entries(sec.tags||{})) h += kv(k, v);
-      if (!Object.keys(sec.tags||{}).length) h += '<p style="color:var(--muted)">No tags found.</p>';
-      break;
-    case 'structured_data':
-      h += kv('JSON-LD blocks', sec.count);
-      if (sec.types?.length) h += kv('Types', sec.types.join(', ')); break;
-    case 'hreflang':
-      if (sec.tags?.length) { for (const t of sec.tags) h += kv(t.lang, t.href); }
-      else h += '<p style="color:var(--muted)">No hreflang tags found.</p>';
-      break;
-    case 'performance_hints':
-      h += kv('Inline styles', sec.inline_styles);
-      h += kv('Total scripts', sec.total_scripts);
-      h += kv('Render-blocking', sec.render_blocking_scripts);
-      break;
-    case 'content':
-      h += kv('Word count', sec.word_count);
-      const rd = sec.readability || {};
-      if (rd.flesch_reading_ease !== undefined) {
-        h += `<div style="margin:8px 0 4px;font-weight:600;">Readability</div>`;
-        h += kv('Flesch Reading Ease', rd.flesch_reading_ease + readabilityLabel(rd.flesch_reading_ease));
-        h += kv('Flesch-Kincaid Grade', rd.flesch_kincaid_grade);
-        h += kv('Gunning Fog Index', rd.gunning_fog);
-        h += kv('Avg Sentence Length', rd.avg_sentence_length + ' words');
-      }
-      const kp = sec.keyword_placement;
-      if (kp?.primary_keyword) {
-        h += `<div style="margin:8px 0 4px;font-weight:600;">Primary Keyword: "${esc(kp.primary_keyword)}"</div>`;
-        h += kv('In Title', kp.in_title ? '✅ Yes' : '❌ No');
-        h += kv('In Meta Desc', kp.in_meta_desc ? '✅ Yes' : '❌ No');
-        h += kv('In H1', kp.in_h1 ? '✅ Yes' : '❌ No');
-        h += kv('In URL', kp.in_url ? '✅ Yes' : '❌ No');
-      }
-      if (sec.top_keywords?.length) {
-        const maxC = sec.top_keywords[0].count;
-        h += `<div style="margin:8px 0 4px;font-weight:600;">Top Keywords</div>`;
-        h += `<table class="kw-table"><tr><th>Keyword</th><th>Count</th><th>Density</th><th></th></tr>`;
-        for (const kw of sec.top_keywords) {
-          const w = Math.round(kw.count / maxC * 100);
-          h += `<tr><td>${esc(kw.word)}</td><td>${kw.count}</td><td>${kw.density}%</td><td><span class="kw-bar" style="width:${w}px"></span></td></tr>`;
         }
-        h += `</table>`;
-      }
-      if (sec.bigrams?.length) {
-        h += `<div style="margin:8px 0 4px;font-weight:600;">Top 2-Word Phrases</div>`;
-        h += `<table class="kw-table"><tr><th>Phrase</th><th>Count</th></tr>`;
-        for (const bg of sec.bigrams) h += `<tr><td>${esc(bg.phrase)}</td><td>${bg.count}</td></tr>`;
-        h += `</table>`;
-      }
-      if (sec.trigrams?.length) {
-        h += `<div style="margin:8px 0 4px;font-weight:600;">Top 3-Word Phrases</div>`;
-        h += `<table class="kw-table"><tr><th>Phrase</th><th>Count</th></tr>`;
-        for (const tg of sec.trigrams) h += `<tr><td>${esc(tg.phrase)}</td><td>${tg.count}</td></tr>`;
-        h += `</table>`;
-      }
-      break;
-  }
-  if (issues.length) {
-    h += `<ul class="issue-list">`;
-    for (const i of issues) h += `<li>${esc(i)}</li>`;
-    h += `</ul>`;
-  }
-  return h;
-}
 
-function kv(label, value) {
-  return `<div class="kv"><span class="label">${esc(String(label))}</span><span class="value">${String(value)}</span></div>`;
-}
-function readabilityLabel(score) {
-  if (score >= 80) return ' (Easy)'; if (score >= 60) return ' (Standard)';
-  if (score >= 40) return ' (Difficult)'; return ' (Very Difficult)';
-}
-
-function exportFullJSON() {
-  const data = { summary: siteSummary, pages: pageReports };
-  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
-  dl(blob, 'seo-site-report.json');
-}
-
-function exportFullText() {
-  let txt = `FULL SITE SEO REPORT\n${'='.repeat(70)}\n`;
-  if (siteSummary) {
-    txt += `Pages Analyzed: ${siteSummary.total_pages}\n`;
-    txt += `Average Score: ${siteSummary.avg_score}%\n`;
-    txt += `Total Words: ${siteSummary.total_words}\n`;
-    txt += `Total Issues: ${siteSummary.total_issues}\n\n`;
-    if (siteSummary.site_keywords?.length) {
-      txt += `SITE-WIDE TOP KEYWORDS\n${'-'.repeat(40)}\n`;
-      for (const kw of siteSummary.site_keywords) txt += `  ${kw.word}: ${kw.count}\n`;
-      txt += '\n';
-    }
-    if (siteSummary.site_bigrams?.length) {
-      txt += `SITE-WIDE TOP PHRASES\n${'-'.repeat(40)}\n`;
-      for (const bg of siteSummary.site_bigrams) txt += `  ${bg.phrase}: ${bg.count}\n`;
-      txt += '\n';
-    }
-  }
-
-  for (const r of pageReports) {
-    txt += `\n${'='.repeat(70)}\n`;
-    txt += `PAGE: ${r.url}\n`;
-    txt += `Score: ${r.scores.percentage}% (${r.scores.passed}/${r.scores.total} passed)\n`;
-    txt += `Status: ${r.timing.status_code} | ${r.timing.total_ms}ms\n`;
-    for (const [key, sec] of Object.entries(r.sections)) {
-      txt += `\n  --- ${key.replace(/_/g,' ').toUpperCase()} ---\n`;
-      if (sec.value !== undefined) txt += `    Value: ${sec.value}\n`;
-      if (sec.length !== undefined) txt += `    Length: ${sec.length}\n`;
-      if (sec.word_count !== undefined) txt += `    Word count: ${sec.word_count}\n`;
-      if (sec.total !== undefined) txt += `    Total: ${sec.total}\n`;
-      if (sec.internal !== undefined) txt += `    Internal: ${sec.internal} | External: ${sec.external}\n`;
-      if (sec.issues?.length) { for (const i of sec.issues) txt += `    ⚠ ${i}\n`; }
-      if (sec.top_keywords) {
-        txt += `    Top Keywords:\n`;
-        for (const kw of sec.top_keywords) txt += `      ${kw.word}: ${kw.count} (${kw.density}%)\n`;
+        if (r.all_issues?.length) {
+          html += `<div class="issues-summary"><h3>All Issues (${r.all_issues.length})</h3>`;
+          for (const iss of r.all_issues) {
+            html += `<div class="issue-row"><span class="issue-section">${esc(iss.section.replace(/_/g, " "))}</span> <span>${esc(iss.issue)}</span></div>`;
+          }
+          html += `</div>`;
+        }
+        return html;
       }
-      if (sec.bigrams?.length) {
-        txt += `    Top 2-word phrases:\n`;
-        for (const bg of sec.bigrams) txt += `      ${bg.phrase}: ${bg.count}\n`;
-      }
-      if (sec.keyword_placement?.primary_keyword) {
-        const kp = sec.keyword_placement;
-        txt += `    Primary keyword: "${kp.primary_keyword}"\n`;
-        txt += `      In title: ${kp.in_title} | In meta: ${kp.in_meta_desc} | In H1: ${kp.in_h1} | In URL: ${kp.in_url}\n`;
-      }
-      if (sec.readability?.flesch_reading_ease !== undefined) {
-        const rd = sec.readability;
-        txt += `    Readability: Flesch=${rd.flesch_reading_ease}, Grade=${rd.flesch_kincaid_grade}, Fog=${rd.gunning_fog}\n`;
-      }
-    }
-    if (r.all_issues?.length) {
-      txt += `\n  ALL ISSUES (${r.all_issues.length}):\n`;
-      for (const iss of r.all_issues) txt += `    [${iss.section}] ${iss.issue}\n`;
-    }
-  }
 
-  const blob = new Blob([txt], {type:'text/plain'});
-  dl(blob, 'seo-site-report.txt');
-}
+      function renderSectionBody(key, sec) {
+        let h = "";
+        const issues = sec.issues || [];
+        switch (key) {
+          case "title":
+          case "meta_description":
+            h += kv("Value", sec.value || "(empty)");
+            h += kv("Length", sec.length + " characters");
+            break;
+          case "canonical":
+          case "robots":
+          case "viewport":
+          case "charset":
+          case "language":
+            h += kv("Value", sec.value || "(not set)");
+            break;
+          case "url_structure":
+            h += kv("URL", sec.url);
+            h += kv("Path", sec.path);
+            break;
+          case "https":
+            h += kv("Secure", sec.secure ? "Yes (HTTPS)" : "No — HTTP only");
+            break;
+          case "headings":
+            for (let i = 1; i <= 6; i++)
+              h += kv(`H${i} count`, sec.counts[`h${i}`]);
+            if (sec.h1?.length) h += kv("H1 text", sec.h1.join(" | "));
+            if (sec.h2?.length) h += kv("H2 tags", sec.h2.join(" | "));
+            break;
+          case "images":
+            h += kv("Total images", sec.total);
+            h += kv("Missing alt", sec.missing_alt?.length || 0);
+            h += kv("Empty alt", sec.empty_alt?.length || 0);
+            break;
+          case "links":
+            h += kv("Internal", sec.internal);
+            h += kv("External", sec.external);
+            h += kv("Nofollow", sec.nofollow);
+            break;
+          case "open_graph":
+          case "twitter_card":
+            for (const [k, v] of Object.entries(sec.tags || {})) h += kv(k, v);
+            if (!Object.keys(sec.tags || {}).length)
+              h += '<p style="color:var(--muted)">No tags found.</p>';
+            break;
+          case "structured_data":
+            h += kv("JSON-LD blocks", sec.count);
+            if (sec.types?.length) h += kv("Types", sec.types.join(", "));
+            break;
+          case "hreflang":
+            if (sec.tags?.length) {
+              for (const t of sec.tags) h += kv(t.lang, t.href);
+            } else
+              h += '<p style="color:var(--muted)">No hreflang tags found.</p>';
+            break;
+          case "performance_hints":
+            h += kv("Inline styles", sec.inline_styles);
+            h += kv("Total scripts", sec.total_scripts);
+            h += kv("Render-blocking", sec.render_blocking_scripts);
+            break;
+          case "content":
+            h += kv("Word count", sec.word_count);
+            const rd = sec.readability || {};
+            if (rd.flesch_reading_ease !== undefined) {
+              h += `<div style="margin:8px 0 4px;font-weight:600;">Readability</div>`;
+              h += kv(
+                "Flesch Reading Ease",
+                rd.flesch_reading_ease +
+                  readabilityLabel(rd.flesch_reading_ease),
+              );
+              h += kv("Flesch-Kincaid Grade", rd.flesch_kincaid_grade);
+              h += kv("Gunning Fog Index", rd.gunning_fog);
+              h += kv("Avg Sentence Length", rd.avg_sentence_length + " words");
+            }
+            const kp = sec.keyword_placement;
+            if (kp?.primary_keyword) {
+              h += `<div style="margin:8px 0 4px;font-weight:600;">Primary Keyword: "${esc(kp.primary_keyword)}"</div>`;
+              h += kv("In Title", kp.in_title ? "✅ Yes" : "❌ No");
+              h += kv("In Meta Desc", kp.in_meta_desc ? "✅ Yes" : "❌ No");
+              h += kv("In H1", kp.in_h1 ? "✅ Yes" : "❌ No");
+              h += kv("In URL", kp.in_url ? "✅ Yes" : "❌ No");
+            }
+            if (sec.top_keywords?.length) {
+              const maxC = sec.top_keywords[0].count;
+              h += `<div style="margin:8px 0 4px;font-weight:600;">Top Keywords</div>`;
+              h += `<table class="kw-table"><tr><th>Keyword</th><th>Count</th><th>Density</th><th></th></tr>`;
+              for (const kw of sec.top_keywords) {
+                const w = Math.round((kw.count / maxC) * 100);
+                h += `<tr><td>${esc(kw.word)}</td><td>${kw.count}</td><td>${kw.density}%</td><td><span class="kw-bar" style="width:${w}px"></span></td></tr>`;
+              }
+              h += `</table>`;
+            }
+            if (sec.bigrams?.length) {
+              h += `<div style="margin:8px 0 4px;font-weight:600;">Top 2-Word Phrases</div>`;
+              h += `<table class="kw-table"><tr><th>Phrase</th><th>Count</th></tr>`;
+              for (const bg of sec.bigrams)
+                h += `<tr><td>${esc(bg.phrase)}</td><td>${bg.count}</td></tr>`;
+              h += `</table>`;
+            }
+            if (sec.trigrams?.length) {
+              h += `<div style="margin:8px 0 4px;font-weight:600;">Top 3-Word Phrases</div>`;
+              h += `<table class="kw-table"><tr><th>Phrase</th><th>Count</th></tr>`;
+              for (const tg of sec.trigrams)
+                h += `<tr><td>${esc(tg.phrase)}</td><td>${tg.count}</td></tr>`;
+              h += `</table>`;
+            }
+            break;
+        }
+        if (issues.length) {
+          h += `<ul class="issue-list">`;
+          for (const i of issues) h += `<li>${esc(i)}</li>`;
+          h += `</ul>`;
+        }
+        return h;
+      }
 
-function dl(blob, name) {
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = name; a.click();
-}
-</script>
-</body>
+      function kv(label, value) {
+        return `<div class="kv"><span class="label">${esc(String(label))}</span><span class="value">${String(value)}</span></div>`;
+      }
+      function readabilityLabel(score) {
+        if (score >= 80) return " (Easy)";
+        if (score >= 60) return " (Standard)";
+        if (score >= 40) return " (Difficult)";
+        return " (Very Difficult)";
+      }
+
+      function exportFullJSON() {
+        const data = { summary: siteSummary, pages: pageReports };
+        const blob = new Blob([JSON.stringify(data, null, 2)], {
+          type: "application/json",
+        });
+        dl(blob, "seo-site-report.json");
+      }
+
+      function exportFullText() {
+        let txt = `FULL SITE SEO REPORT\n${"=".repeat(70)}\n`;
+        if (siteSummary) {
+          txt += `Pages Analyzed: ${siteSummary.total_pages}\n`;
+          txt += `Average Score: ${siteSummary.avg_score}%\n`;
+          txt += `Total Words: ${siteSummary.total_words}\n`;
+          txt += `Total Issues: ${siteSummary.total_issues}\n\n`;
+          if (siteSummary.site_keywords?.length) {
+            txt += `SITE-WIDE TOP KEYWORDS\n${"-".repeat(40)}\n`;
+            for (const kw of siteSummary.site_keywords)
+              txt += `  ${kw.word}: ${kw.count}\n`;
+            txt += "\n";
+          }
+          if (siteSummary.site_bigrams?.length) {
+            txt += `SITE-WIDE TOP PHRASES\n${"-".repeat(40)}\n`;
+            for (const bg of siteSummary.site_bigrams)
+              txt += `  ${bg.phrase}: ${bg.count}\n`;
+            txt += "\n";
+          }
+        }
+
+        for (const r of pageReports) {
+          txt += `\n${"=".repeat(70)}\n`;
+          txt += `PAGE: ${r.url}\n`;
+          txt += `Score: ${r.scores.percentage}% (${r.scores.passed}/${r.scores.total} passed)\n`;
+          txt += `Status: ${r.timing.status_code} | ${r.timing.total_ms}ms\n`;
+          for (const [key, sec] of Object.entries(r.sections)) {
+            txt += `\n  --- ${key.replace(/_/g, " ").toUpperCase()} ---\n`;
+            if (sec.value !== undefined) txt += `    Value: ${sec.value}\n`;
+            if (sec.length !== undefined) txt += `    Length: ${sec.length}\n`;
+            if (sec.word_count !== undefined)
+              txt += `    Word count: ${sec.word_count}\n`;
+            if (sec.total !== undefined) txt += `    Total: ${sec.total}\n`;
+            if (sec.internal !== undefined)
+              txt += `    Internal: ${sec.internal} | External: ${sec.external}\n`;
+            if (sec.issues?.length) {
+              for (const i of sec.issues) txt += `    ⚠ ${i}\n`;
+            }
+            if (sec.top_keywords) {
+              txt += `    Top Keywords:\n`;
+              for (const kw of sec.top_keywords)
+                txt += `      ${kw.word}: ${kw.count} (${kw.density}%)\n`;
+            }
+            if (sec.bigrams?.length) {
+              txt += `    Top 2-word phrases:\n`;
+              for (const bg of sec.bigrams)
+                txt += `      ${bg.phrase}: ${bg.count}\n`;
+            }
+            if (sec.keyword_placement?.primary_keyword) {
+              const kp = sec.keyword_placement;
+              txt += `    Primary keyword: "${kp.primary_keyword}"\n`;
+              txt += `      In title: ${kp.in_title} | In meta: ${kp.in_meta_desc} | In H1: ${kp.in_h1} | In URL: ${kp.in_url}\n`;
+            }
+            if (sec.readability?.flesch_reading_ease !== undefined) {
+              const rd = sec.readability;
+              txt += `    Readability: Flesch=${rd.flesch_reading_ease}, Grade=${rd.flesch_kincaid_grade}, Fog=${rd.gunning_fog}\n`;
+            }
+          }
+          if (r.all_issues?.length) {
+            txt += `\n  ALL ISSUES (${r.all_issues.length}):\n`;
+            for (const iss of r.all_issues)
+              txt += `    [${iss.section}] ${iss.issue}\n`;
+          }
+        }
+
+        const blob = new Blob([txt], { type: "text/plain" });
+        dl(blob, "seo-site-report.txt");
+      }
+
+      function dl(blob, name) {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = name;
+        a.click();
+      }
+    </script>
+  </body>
 </html>
