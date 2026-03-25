@@ -30,6 +30,10 @@ CORS(app)
 OUTPUTS_DIR = Path(__file__).parent / "outputs"
 OUTPUTS_DIR.mkdir(exist_ok=True)
 
+# Realistic browser User-Agent for HTTP requests (many WAFs block custom UAs)
+_UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+       "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36")
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -464,72 +468,98 @@ def _discover_internal_links(html: str, base_url: str, root_netloc: str) -> set[
 # Sitemap fetching
 # ---------------------------------------------------------------------------
 
-def _fetch_sitemap_urls(start_url: str, root_netloc: str) -> list[str]:
-    """Fetch URLs from sitemap.xml (supports sitemap index files)."""
-    urls: list[str] = []
+def _parse_sitemap_xml(content: str, root_netloc: str) -> tuple[list[str], list[str]]:
+    """Parse sitemap XML content. Returns (page_urls, child_sitemap_urls)."""
+    page_urls: list[str] = []
+    child_sitemaps: list[str] = []
+    try:
+        # Strip ALL XML namespace declarations for easier tag matching
+        content = re.sub(r'\s+xmlns(?::\w+)?\s*=\s*"[^"]*"', '', content)
+        # Strip prefixed attributes (e.g. xsi:schemaLocation) left behind
+        content = re.sub(r'\s+\w+:\w+\s*=\s*"[^"]*"', '', content)
+        root_elem = ET.fromstring(content)
+
+        # Sitemap index → child <sitemap><loc> entries
+        for sitemap_elem in root_elem.iter("sitemap"):
+            loc = sitemap_elem.find("loc")
+            if loc is not None and loc.text:
+                child_sitemaps.append(loc.text.strip())
+
+        # URL set → page <url><loc> entries
+        for url_elem in root_elem.iter("url"):
+            loc = url_elem.find("loc")
+            if loc is not None and loc.text:
+                page_url = loc.text.strip()
+                p = urlparse(page_url)
+                if _same_site(p.netloc, root_netloc):
+                    page_urls.append(_normalise_url(page_url))
+    except Exception:
+        pass
+    return page_urls, child_sitemaps
+
+
+def _sitemap_candidates_from_robots(robots_text: str) -> list[str]:
+    """Extract Sitemap URLs from robots.txt content."""
+    candidates: list[str] = []
+    for line in robots_text.splitlines():
+        m = re.match(r'^\s*sitemap:\s*(.+)', line, re.I)
+        if m:
+            sm_url = m.group(1).strip()
+            if sm_url.startswith("http"):
+                candidates.append(sm_url)
+    return candidates
+
+
+def _get_sitemap_candidates(start_url: str) -> tuple[str, str, list[str]]:
+    """Return (base, www_base, fallback_candidates) for a given start URL."""
     parsed = urlparse(start_url)
-    # Try common sitemap locations
     base = f"{parsed.scheme}://{parsed.netloc}"
-    # Also try www variant
-    www_base = f"{parsed.scheme}://www.{parsed.netloc}" if not parsed.netloc.startswith("www.") else base
+    www_base = (f"{parsed.scheme}://www.{parsed.netloc}"
+                if not parsed.netloc.startswith("www.") else base)
+    fallback = []
+    for b in (base, www_base):
+        fallback.extend([
+            f"{b}/sitemap.xml",
+            f"{b}/sitemap_index.xml",
+            f"{b}/wp-sitemap.xml",
+        ])
+    return base, www_base, fallback
 
-    sitemap_candidates = []
 
-    # First: check robots.txt for sitemap declarations
-    for b in [base, www_base]:
+def _fetch_sitemap_urls(start_url: str, root_netloc: str) -> list[str]:
+    """Fetch URLs from sitemap.xml (supports sitemap index files). urllib fallback."""
+    urls: list[str] = []
+    base, www_base, fallback = _get_sitemap_candidates(start_url)
+
+    sitemap_candidates: list[str] = []
+
+    # Check robots.txt for sitemap declarations
+    for b in (base, www_base):
         try:
-            robots_url = f"{b}/robots.txt"
-            req = urllib.request.Request(robots_url, headers={"User-Agent": "SEO-Analyzer/1.0"})
+            req = urllib.request.Request(f"{b}/robots.txt", headers={"User-Agent": _UA})
             with urllib.request.urlopen(req, timeout=10) as resp:
                 robots_text = resp.read().decode("utf-8", errors="ignore")
-                for line in robots_text.splitlines():
-                    if line.strip().lower().startswith("sitemap:"):
-                        sm_url = line.split(":", 1)[1].strip()
-                        if sm_url.startswith("http"):
-                            sitemap_candidates.append(sm_url)
+            sitemap_candidates.extend(_sitemap_candidates_from_robots(robots_text))
         except Exception:
             pass
 
-    # Fallback: try common locations
     if not sitemap_candidates:
-        for b in [base, www_base]:
-            sitemap_candidates.extend([
-                f"{b}/sitemap.xml",
-                f"{b}/sitemap_index.xml",
-                f"{b}/wp-sitemap.xml",
-            ])
+        sitemap_candidates = fallback
 
-    visited_sitemaps: set[str] = set()
+    visited: set[str] = set()
 
     def _parse_sitemap(sm_url: str, depth: int = 0):
-        if depth > 3 or sm_url in visited_sitemaps:
+        if depth > 3 or sm_url in visited:
             return
-        visited_sitemaps.add(sm_url)
+        visited.add(sm_url)
         try:
-            req = urllib.request.Request(sm_url, headers={"User-Agent": "SEO-Analyzer/1.0"})
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            req = urllib.request.Request(sm_url, headers={"User-Agent": _UA})
+            with urllib.request.urlopen(req, timeout=15) as resp:
                 content = resp.read().decode("utf-8", errors="ignore")
-            # Strip namespaces for easier parsing
-            content = re.sub(r'\s+xmlns\s*=\s*"[^"]*"', '', content, count=1)
-            root = ET.fromstring(content)
-
-            # Sitemap index (contains <sitemap><loc> entries)
-            for sitemap_elem in root.iter("sitemap"):
-                loc = sitemap_elem.find("loc")
-                if loc is not None and loc.text:
-                    child_url = loc.text.strip()
-                    # Strip CDATA if present
-                    child_url = child_url.strip()
-                    _parse_sitemap(child_url, depth + 1)
-
-            # URL set (contains <url><loc> entries)
-            for url_elem in root.iter("url"):
-                loc = url_elem.find("loc")
-                if loc is not None and loc.text:
-                    page_url = loc.text.strip()
-                    p = urlparse(page_url)
-                    if _same_site(p.netloc, root_netloc):
-                        urls.append(_normalise_url(page_url))
+            page_urls, child_sitemaps = _parse_sitemap_xml(content, root_netloc)
+            urls.extend(page_urls)
+            for child in child_sitemaps:
+                _parse_sitemap(child, depth + 1)
         except Exception:
             pass
 
@@ -539,16 +569,73 @@ def _fetch_sitemap_urls(start_url: str, root_netloc: str) -> list[str]:
     return list(set(urls))
 
 
+async def _fetch_sitemap_urls_async(start_url: str, root_netloc: str, page) -> list[str]:
+    """Fetch sitemap URLs using in-page fetch() — inherits cookies + anti-bot state."""
+    urls: list[str] = []
+    base, www_base, fallback = _get_sitemap_candidates(start_url)
+
+    async def _fetch_text(url: str) -> str:
+        """Use the page's JS execution context to fetch a URL (bypasses WAFs)."""
+        try:
+            return await page.evaluate("""
+                async (url) => {
+                    try {
+                        const resp = await fetch(url, {credentials: 'include'});
+                        if (!resp.ok) return '';
+                        return await resp.text();
+                    } catch(e) { return ''; }
+                }
+            """, url)
+        except Exception:
+            return ""
+
+    sitemap_candidates: list[str] = []
+
+    # Check robots.txt using in-page fetch (inherits full anti-bot state)
+    for b in (base, www_base):
+        try:
+            robots_text = await _fetch_text(f"{b}/robots.txt")
+            if robots_text:
+                sitemap_candidates.extend(_sitemap_candidates_from_robots(robots_text))
+        except Exception:
+            pass
+
+    if not sitemap_candidates:
+        sitemap_candidates = fallback
+
+    visited: set[str] = set()
+
+    async def _parse_sitemap(sm_url: str, depth: int = 0):
+        if depth > 3 or sm_url in visited:
+            return
+        visited.add(sm_url)
+        try:
+            content = await _fetch_text(sm_url)
+            if not content:
+                return
+            page_urls, child_sitemaps = _parse_sitemap_xml(content, root_netloc)
+            urls.extend(page_urls)
+            for child in child_sitemaps:
+                await _parse_sitemap(child, depth + 1)
+        except Exception:
+            pass
+
+    for sm in sitemap_candidates:
+        await _parse_sitemap(sm)
+
+    return list(set(urls))
+
+
 def _resolve_url(start_url: str) -> tuple[str, str]:
-    """Follow redirects and return (resolved_url, root_netloc)."""
+    """Follow redirects and return (resolved_url, root_netloc). urllib fallback."""
     resolved_url = start_url
     try:
-        req = urllib.request.Request(start_url, headers={"User-Agent": "SEO-Analyzer/1.0"}, method="HEAD")
+        req = urllib.request.Request(start_url, headers={"User-Agent": _UA}, method="HEAD")
         with urllib.request.urlopen(req, timeout=10) as resp:
             resolved_url = resp.url
     except Exception:
         try:
-            req = urllib.request.Request(start_url, headers={"User-Agent": "SEO-Analyzer/1.0"})
+            req = urllib.request.Request(start_url, headers={"User-Agent": _UA})
             with urllib.request.urlopen(req, timeout=10) as resp:
                 resolved_url = resp.url
         except Exception:
@@ -680,25 +767,30 @@ def _save_report_files(url: str, summary: dict, page_reports: list[dict]):
 
 
 def _prescan(start_url: str) -> dict:
-    """Do a lightweight prescan: resolve URL, fetch sitemap, load homepage for navbar."""
-    resolved_url, root_netloc = _resolve_url(start_url)
+    """Prescan using Playwright for robustness against bot protection + JS rendering."""
+    try:
+        return asyncio.run(_prescan_async(start_url))
+    except Exception:
+        # Fallback to urllib-based prescan (works on simple sites)
+        return _prescan_urllib(start_url)
 
-    # Fetch sitemap URLs
+
+def _prescan_urllib(start_url: str) -> dict:
+    """Fallback prescan using urllib (no JS rendering, may be blocked by WAFs)."""
+    resolved_url, root_netloc = _resolve_url(start_url)
     sitemap_urls = []
     try:
         sitemap_urls = _fetch_sitemap_urls(resolved_url, root_netloc)
     except Exception:
         pass
 
-    # Fetch homepage and extract navbar links
     navbar_urls: list[str] = []
     homepage_links: list[str] = []
     try:
-        req = urllib.request.Request(resolved_url, headers={"User-Agent": "SEO-Analyzer/1.0"})
+        req = urllib.request.Request(resolved_url, headers={"User-Agent": _UA})
         with urllib.request.urlopen(req, timeout=15) as resp:
             html = resp.read().decode("utf-8", errors="ignore")
         navbar_urls = _extract_navbar_links(html, resolved_url, root_netloc)
-        # Also get all internal links from homepage (non-rendered, quick)
         soup = BeautifulSoup(html, "lxml")
         for a in soup.find_all("a", href=True):
             href = a["href"].strip()
@@ -711,18 +803,81 @@ def _prescan(start_url: str) -> dict:
     except Exception:
         pass
 
-    # Combine all discovered URLs
     all_urls = list(set([resolved_url] + sitemap_urls + navbar_urls + homepage_links))
-    branches = _group_urls_by_branch(all_urls)
+    return _build_prescan_result(resolved_url, root_netloc, all_urls, navbar_urls)
 
-    # Figure out which branches the navbar links touch
+
+async def _prescan_async(start_url: str) -> dict:
+    """Async prescan: real browser handles bot protection, JS rendering, cookies."""
+    from playwright.async_api import async_playwright
+
+    resolved_url = start_url
+    root_netloc = urlparse(start_url).netloc
+    navbar_urls: list[str] = []
+    homepage_links: list[str] = []
+    sitemap_urls: list[str] = []
+
+    async with async_playwright() as pw:
+        browser = await pw.chromium.launch(headless=True)
+        context = await browser.new_context()
+        page = await context.new_page()
+
+        # 1. Navigate to homepage — handles redirects, JS challenges, cookies
+        try:
+            await page.goto(start_url, wait_until="domcontentloaded", timeout=30000)
+            resolved_url = page.url
+            root_netloc = urlparse(resolved_url).netloc
+        except Exception:
+            pass
+
+        # 2. Get fully rendered HTML for navbar + link extraction
+        try:
+            # Wait a moment for dynamic navs to render
+            await page.wait_for_timeout(1500)
+            html = await page.content()
+            navbar_urls = _extract_navbar_links(html, resolved_url, root_netloc)
+            soup = BeautifulSoup(html, "lxml")
+            for a in soup.find_all("a", href=True):
+                href = a["href"].strip()
+                if href.startswith(("#", "mailto:", "tel:", "javascript:")):
+                    continue
+                full = urljoin(resolved_url, href)
+                p = urlparse(full)
+                if _same_site(p.netloc, root_netloc):
+                    homepage_links.append(_normalise_url(full))
+        except Exception:
+            pass
+
+        # 3. Fetch sitemap URLs using in-page fetch (inherits cookies + anti-bot)
+        try:
+            sitemap_urls = await _fetch_sitemap_urls_async(
+                resolved_url, root_netloc, page
+            )
+        except Exception:
+            pass
+
+        await browser.close()
+
+    all_urls = list(set(
+        [_normalise_url(resolved_url)] + sitemap_urls + navbar_urls + homepage_links
+    ))
+    return _build_prescan_result(
+        _normalise_url(resolved_url), root_netloc, all_urls, navbar_urls
+    )
+
+
+def _build_prescan_result(
+    resolved_url: str, root_netloc: str,
+    all_urls: list[str], navbar_urls: list[str]
+) -> dict:
+    """Assemble the prescan response dict."""
+    branches = _group_urls_by_branch(all_urls)
     navbar_branches: set[str] = set()
     for u in navbar_urls:
         parsed = urlparse(u)
         parts = [p for p in parsed.path.strip("/").split("/") if p]
         branch = "/" + parts[0] + "/" if parts else "/"
         navbar_branches.add(branch)
-
     return {
         "resolved_url": resolved_url,
         "root_netloc": root_netloc,
@@ -769,12 +924,12 @@ async def _async_crawl(start_url: str, max_pages: int, state: dict,
         # Legacy path: resolve + sitemap discovery
         resolved_url = start_url
         try:
-            req = urllib.request.Request(start_url, headers={"User-Agent": "SEO-Analyzer/1.0"}, method="HEAD")
+            req = urllib.request.Request(start_url, headers={"User-Agent": _UA}, method="HEAD")
             with urllib.request.urlopen(req, timeout=10) as resp:
                 resolved_url = resp.url
         except Exception:
             try:
-                req = urllib.request.Request(start_url, headers={"User-Agent": "SEO-Analyzer/1.0"})
+                req = urllib.request.Request(start_url, headers={"User-Agent": _UA})
                 with urllib.request.urlopen(req, timeout=10) as resp:
                     resolved_url = resp.url
             except Exception:
