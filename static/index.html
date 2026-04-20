@@ -85,6 +85,16 @@
       }
       .auth-btn-ghost:hover { border-color: var(--accent); color: var(--text); }
       .auth-error { color: var(--red); font-size: 13px; margin-top: 8px; min-height: 18px; }
+      .auth-privacy-note {
+        font-size: 11.5px;
+        color: var(--muted);
+        line-height: 1.55;
+        margin: 10px 0 4px;
+        padding: 8px 10px;
+        background: rgba(255,255,255,0.03);
+        border-left: 2px solid var(--accent);
+        border-radius: 2px;
+      }
       .auth-info  { color: var(--green); font-size: 13px; margin-top: 8px; }
 
       /* ─── Top user bar ─────────────────────────────────────── */
@@ -875,6 +885,7 @@
           <div class="auth-field"><label>Email</label><input type="email" id="registerEmail" placeholder="you@example.com" /></div>
           <div class="auth-field"><label>Password</label><input type="password" id="registerPassword" placeholder="•••••••• (8+ chars)" /></div>
           <div class="auth-field"><label>Confirm password</label><input type="password" id="registerPassword2" placeholder="••••••••" /></div>
+          <p class="auth-privacy-note">🔒 Your password is hashed and never stored in plain text. Your saved reports are only accessible to you — no one else can view your data.</p>
           <div class="auth-error" id="registerError"></div>
           <div class="auth-footer">
             <button class="auth-btn" id="registerSubmitBtn" onclick="doRegister()">Create account</button>
