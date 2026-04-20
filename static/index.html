@@ -19,6 +19,61 @@
         --red: #ef5350;
         --radius: 10px;
       }
+
+      /* ─── Auth overlay ─────────────────────────────────────── */
+      #authOverlay {
+        position: fixed; inset: 0;
+        background: rgba(10,11,17,0.97);
+        z-index: 9999;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .auth-box {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 36px 32px;
+        width: 100%; max-width: 380px;
+        box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+      }
+      .auth-box h2 { font-size: 20px; margin-bottom: 6px; }
+      .auth-box p { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+      .auth-field { margin-bottom: 14px; }
+      .auth-field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+      .auth-field input {
+        width: 100%; padding: 10px 12px;
+        background: var(--surface2); border: 1px solid var(--border);
+        border-radius: 8px; color: var(--text); font-size: 14px;
+        outline: none;
+      }
+      .auth-field input:focus { border-color: var(--accent); }
+      .auth-btn {
+        width: 100%; padding: 11px;
+        background: var(--accent); color: #fff;
+        border: none; border-radius: 8px;
+        font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 6px;
+      }
+      .auth-btn:hover { opacity: 0.9; }
+      .auth-btn:disabled { opacity: 0.5; cursor: default; }
+      .auth-error { color: var(--red); font-size: 13px; margin-top: 10px; min-height: 18px; }
+
+      /* ─── Top user bar ─────────────────────────────────────── */
+      #userBar {
+        display: none;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 0 4px;
+        font-size: 12px;
+        color: var(--muted);
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 20px;
+      }
+      #userBar button {
+        background: none; border: 1px solid var(--border);
+        color: var(--muted); padding: 3px 10px;
+        border-radius: 6px; font-size: 12px; cursor: pointer;
+      }
+      #userBar button:hover { border-color: var(--accent); color: var(--text); }
       * {
         margin: 0;
         padding: 0;
@@ -757,7 +812,31 @@
     </style>
   </head>
   <body>
+    <!-- Auth overlay — hidden once logged in -->
+    <div id="authOverlay">
+      <div class="auth-box">
+        <h2>📊 SEO Analyzer</h2>
+        <p>Sign in with your michaelwegter.com account to continue.</p>
+        <div class="auth-field">
+          <label>Email</label>
+          <input type="email" id="authEmail" placeholder="you@example.com" />
+        </div>
+        <div class="auth-field">
+          <label>Password</label>
+          <input type="password" id="authPassword" placeholder="Password" />
+        </div>
+        <button class="auth-btn" id="authLoginBtn" onclick="doLogin()">Sign In</button>
+        <div class="auth-error" id="authError"></div>
+      </div>
+    </div>
+
     <div class="container">
+      <!-- Logged-in user bar -->
+      <div id="userBar">
+        <span id="userBarName"></span>
+        <button onclick="doLogout()">Sign out</button>
+      </div>
+
       <div class="header">
         <h1><span>SEO</span> Analyzer</h1>
         <p>
@@ -864,6 +943,81 @@
     </div>
 
     <script>
+      // ===================== CONFIG =====================
+      // Auto-detect backend URL: localhost → mw-backend dev, else production.
+      const API_BASE = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+        ? "http://localhost:5050"
+        : "https://api.michaelwegter.com";
+
+      // ===================== AUTH =====================
+      const TOKEN_KEY = "mw_token";
+      const USER_KEY  = "mw_user";
+
+      function getToken() { return localStorage.getItem(TOKEN_KEY); }
+      function getUser()  { try { return JSON.parse(localStorage.getItem(USER_KEY) || "null"); } catch { return null; } }
+
+      function authHeaders(extra) {
+        return { "Content-Type": "application/json", "Authorization": "Bearer " + getToken(), ...(extra || {}) };
+      }
+
+      function showApp() {
+        document.getElementById("authOverlay").style.display = "none";
+        const bar = document.getElementById("userBar");
+        bar.style.display = "flex";
+        const u = getUser();
+        document.getElementById("userBarName").textContent = u ? (u.display_name || u.email) : "";
+      }
+
+      function doLogout() {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USER_KEY);
+        location.reload();
+      }
+
+      async function doLogin() {
+        const email = document.getElementById("authEmail").value.trim();
+        const pw    = document.getElementById("authPassword").value;
+        const btn   = document.getElementById("authLoginBtn");
+        const errEl = document.getElementById("authError");
+        errEl.textContent = "";
+        if (!email || !pw) { errEl.textContent = "Email and password required."; return; }
+        btn.disabled = true; btn.textContent = "Signing in…";
+        try {
+          const res  = await fetch(`${API_BASE}/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password: pw }),
+          });
+          const data = await res.json();
+          if (!res.ok) { errEl.textContent = data.error || "Login failed."; btn.disabled = false; btn.textContent = "Sign In"; return; }
+          localStorage.setItem(TOKEN_KEY, data.token);
+          localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+          showApp();
+        } catch (e) {
+          errEl.textContent = "Network error — is the backend running?";
+          btn.disabled = false; btn.textContent = "Sign In";
+        }
+      }
+
+      // Enter key submits login
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && document.getElementById("authOverlay").style.display !== "none") doLogin();
+      });
+
+      // ---- On load: check existing token ----
+      (async function initAuth() {
+        const tok = getToken();
+        if (tok) {
+          try {
+            const res = await fetch(`${API_BASE}/auth/me`, { headers: { "Authorization": "Bearer " + tok } });
+            if (res.ok) { const d = await res.json(); localStorage.setItem(USER_KEY, JSON.stringify(d.user)); showApp(); return; }
+          } catch { /* network error, stay on login */ }
+        }
+        // Show login overlay
+        document.getElementById("authOverlay").style.display = "flex";
+      })();
+
+      // ===================== APP =====================
       const $ = (s) => document.querySelector(s);
       const $$ = (s) => document.querySelectorAll(s);
 
@@ -908,7 +1062,7 @@
         $("#reportListArea").innerHTML =
           '<div class="status"><span class="spinner"></span>Loading reports…</div>';
         try {
-          const res = await fetch("/api/reports");
+          const res = await fetch(`${API_BASE}/seo/reports`, { headers: authHeaders() });
           const data = await res.json();
           if (data.error) {
             $("#reportListArea").innerHTML =
@@ -952,7 +1106,8 @@
           '<div class="status"><span class="spinner"></span>Loading report…</div>';
         try {
           const res = await fetch(
-            `/api/reports/${encodeURIComponent(filename)}`,
+            `${API_BASE}/seo/reports/${encodeURIComponent(filename)}`,
+            { headers: authHeaders() },
           );
           const data = await res.json();
           if (data.error) {
@@ -993,9 +1148,9 @@
           <div class="status"><span class="spinner"></span>Pre-scanning site — discovering pages…</div>`;
 
         try {
-          const res = await fetch("/api/prescan", {
+          const res = await fetch(`${API_BASE}/seo/prescan`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: authHeaders(),
             body: JSON.stringify({ url }),
           });
           const data = await res.json();
@@ -1213,9 +1368,9 @@
     <div class="crawl-log" id="crawlLog"></div>`;
 
         try {
-          const res = await fetch("/api/crawl", {
+          const res = await fetch(`${API_BASE}/seo/crawl`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: authHeaders(),
             body: JSON.stringify({
               url: prescanData.resolved_url,
               max_pages: maxPages,
@@ -1239,7 +1394,8 @@
           return;
         }
 
-        const es = new EventSource("/api/crawl/stream");
+        const es = new EventSource(`${API_BASE}/seo/crawl/stream?_tok=${encodeURIComponent(getToken())}`);
+        es.withCredentials = false;
         es.onmessage = (ev) => {
           const msg = JSON.parse(ev.data);
           const log = $("#crawlLog");

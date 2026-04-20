@@ -1,4 +1,10 @@
 #!/bin/bash
+# ─────────────────────────────────────────────────────────────────
+# SEO Analyzer — install deps + start local dev static server
+#
+# Analysis is handled by mw-backend. Make sure it's running first:
+#   cd ../mw-backend && ./start.sh
+# ─────────────────────────────────────────────────────────────────
 set -e
 
 cd "$(dirname "$0")"
@@ -11,18 +17,12 @@ fi
 
 source venv/bin/activate
 
-# Install deps
+# Install deps (minimal — just Flask for static serving)
 echo "Installing Python dependencies..."
 pip install -q -r requirements.txt
 
-# Install Playwright browsers (chromium only)
-if ! python -c "from playwright.sync_api import sync_playwright" 2>/dev/null || \
-   [ ! -d "$HOME/Library/Caches/ms-playwright" ] && [ ! -d "$HOME/.cache/ms-playwright" ]; then
-  echo "Installing Playwright Chromium browser..."
-  playwright install chromium
-fi
-
 echo ""
-echo "Starting SEO Analyzer on http://localhost:5015"
+echo "  → SEO Analyzer static server  →  http://localhost:5015"
+echo "  → Analysis backend required   →  http://localhost:5050"
 echo ""
 python server.py
