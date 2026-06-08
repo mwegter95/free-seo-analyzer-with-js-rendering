@@ -1036,6 +1036,10 @@
       // page (durable storage) so the session survives the token's full life.
       // The parent half of this lives in michaelwegter.com AppFrame.jsx.
       const MW_EMBED_NS = "mw-embed-auth";
+      // Token-bearing messages go ONLY to these first-party parent origins
+      // (never "*"), so a page embedding this app can't skim the login token.
+      const MW_PARENT_ORIGINS = ["https://michaelwegter.com", "https://www.michaelwegter.com"];
+      let mwKnownParentOrigin = null;
       function mwIsEmbedded() { try { return window.parent && window.parent !== window; } catch { return false; } }
       function mwParentAllowed(origin) {
         try {
@@ -1045,9 +1049,9 @@
       }
       function mwSyncTokenToParent(token) {
         if (!mwIsEmbedded()) return;
-        try {
-          window.parent.postMessage(token ? { type: MW_EMBED_NS, action: "set", token } : { type: MW_EMBED_NS, action: "clear" }, "*");
-        } catch {}
+        const msg = token ? { type: MW_EMBED_NS, action: "set", token } : { type: MW_EMBED_NS, action: "clear" };
+        const targets = mwKnownParentOrigin ? [mwKnownParentOrigin] : MW_PARENT_ORIGINS;
+        for (const origin of targets) { try { window.parent.postMessage(msg, origin); } catch {} }
       }
       function mwHydrateTokenFromParent(tokenKey) {
         if (!mwIsEmbedded()) return;
@@ -1056,6 +1060,7 @@
           if (!mwParentAllowed(e.origin)) return;
           const d = e.data;
           if (!d || d.type !== MW_EMBED_NS || d.action !== "token") return;
+          mwKnownParentOrigin = e.origin;   // trust this origin for future token messages
           const local = localStorage.getItem(tokenKey);
           if (d.token) {
             if (d.token !== local) {
