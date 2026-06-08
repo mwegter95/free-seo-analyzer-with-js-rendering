@@ -1028,6 +1028,55 @@
       const TOKEN_KEY = "mw_token";
       const USER_KEY  = "mw_user";
 
+      // ── Embedded-app auth bridge ──────────────────────────────────────────
+      // This page is embedded in an iframe on michaelwegter.com but served from
+      // a different origin (mwegter95.github.io), so Safari evicts its iframe
+      // localStorage within a day or two — logging the user out long before the
+      // 7-day token expires. Mirror the token to/from the first-party parent
+      // page (durable storage) so the session survives the token's full life.
+      // The parent half of this lives in michaelwegter.com AppFrame.jsx.
+      const MW_EMBED_NS = "mw-embed-auth";
+      function mwIsEmbedded() { try { return window.parent && window.parent !== window; } catch { return false; } }
+      function mwParentAllowed(origin) {
+        try {
+          const h = new URL(origin).hostname;
+          return h === "michaelwegter.com" || h === "www.michaelwegter.com" || h === "localhost" || h === "127.0.0.1";
+        } catch { return false; }
+      }
+      function mwSyncTokenToParent(token) {
+        if (!mwIsEmbedded()) return;
+        try {
+          window.parent.postMessage(token ? { type: MW_EMBED_NS, action: "set", token } : { type: MW_EMBED_NS, action: "clear" }, "*");
+        } catch {}
+      }
+      function mwHydrateTokenFromParent(tokenKey) {
+        if (!mwIsEmbedded()) return;
+        const guard = MW_EMBED_NS + ":reloaded";
+        const onMsg = (e) => {
+          if (!mwParentAllowed(e.origin)) return;
+          const d = e.data;
+          if (!d || d.type !== MW_EMBED_NS || d.action !== "token") return;
+          const local = localStorage.getItem(tokenKey);
+          if (d.token) {
+            if (d.token !== local) {
+              try { localStorage.setItem(tokenKey, d.token); } catch {}
+              let already = false;
+              try { already = sessionStorage.getItem(guard) === "1"; } catch {}
+              if (!already) {
+                try { sessionStorage.setItem(guard, "1"); } catch {}
+                window.removeEventListener("message", onMsg);
+                window.location.reload();
+              }
+            }
+          } else if (local) {
+            mwSyncTokenToParent(local);
+          }
+        };
+        window.addEventListener("message", onMsg);
+        try { window.parent.postMessage({ type: MW_EMBED_NS, action: "request" }, "*"); } catch {}
+      }
+      mwHydrateTokenFromParent(TOKEN_KEY);
+
       function getToken() { return localStorage.getItem(TOKEN_KEY); }
       function getUser()  { try { return JSON.parse(localStorage.getItem(USER_KEY) || "null"); } catch { return null; } }
 
@@ -1046,6 +1095,7 @@
       function doLogout() {
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem(USER_KEY);
+        mwSyncTokenToParent(null);
         location.reload();
       }
 
@@ -1096,6 +1146,7 @@
           if (!res.ok) { errEl.textContent = data.error || "Login failed."; btn.disabled = false; btn.textContent = "Log in"; return; }
           localStorage.setItem(TOKEN_KEY, data.token);
           localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+          mwSyncTokenToParent(data.token);
           showApp();
         } catch (e) {
           errEl.textContent = "Network error — is the backend running?";
@@ -1124,6 +1175,7 @@
           if (!res.ok) { errEl.textContent = data.error || "Registration failed."; btn.disabled = false; btn.textContent = "Create account"; return; }
           localStorage.setItem(TOKEN_KEY, data.token);
           localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+          mwSyncTokenToParent(data.token);
           showApp();
         } catch (e) {
           errEl.textContent = "Network error — is the backend running?";
